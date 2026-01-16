@@ -37,9 +37,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../components/ui/alert-dialog";
-import { adminsApi, organizationsApi } from "../lib/api";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
+import { adminsApi, organizationsApi, api } from "../lib/api";
 import { toast } from "sonner";
-import { UserCog, Plus, Search, Trash2, ToggleLeft, ToggleRight, Building2 } from "lucide-react";
+import { UserCog, Plus, Search, Trash2, ToggleLeft, ToggleRight, Building2, MoreVertical, Key, Eye, EyeOff } from "lucide-react";
 import { format } from "date-fns";
 import { getErrorMessage } from "../lib/utils";
 
@@ -50,6 +56,9 @@ export default function AdminsPage() {
   const [search, setSearch] = useState("");
   const [createDialog, setCreateDialog] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, admin: null });
+  const [resetPasswordDialog, setResetPasswordDialog] = useState({ open: false, admin: null });
+  const [newPasswordInput, setNewPasswordInput] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [processing, setProcessing] = useState(false);
   
   const [newAdmin, setNewAdmin] = useState({
@@ -127,6 +136,25 @@ export default function AdminsPage() {
     } finally {
       setProcessing(false);
       setDeleteDialog({ open: false, admin: null });
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetPasswordDialog.admin || !newPasswordInput) return;
+    
+    setProcessing(true);
+    try {
+      await api.post(`/admins/${resetPasswordDialog.admin.id}/reset-password`, {
+        new_password: newPasswordInput,
+      });
+      toast.success(`Password reset successfully for ${resetPasswordDialog.admin.email}`);
+      setResetPasswordDialog({ open: false, admin: null });
+      setNewPasswordInput("");
+      setShowNewPassword(false);
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to reset password"));
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -264,29 +292,42 @@ export default function AdminsPage() {
                         {format(new Date(admin.created_at), "MMM d, yyyy")}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className={admin.is_active ? "text-amber-500" : "text-green-500"}
-                            onClick={() => handleToggleStatus(admin)}
-                            title={admin.is_active ? "Deactivate" : "Activate"}
-                          >
-                            {admin.is_active ? (
-                              <ToggleRight className="h-4 w-4" />
-                            ) : (
-                              <ToggleLeft className="h-4 w-4" />
-                            )}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeleteDialog({ open: true, admin })}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleToggleStatus(admin)}>
+                              {admin.is_active ? (
+                                <>
+                                  <ToggleLeft className="mr-2 h-4 w-4 text-amber-500" />
+                                  Deactivate
+                                </>
+                              ) : (
+                                <>
+                                  <ToggleRight className="mr-2 h-4 w-4 text-green-500" />
+                                  Activate
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              setResetPasswordDialog({ open: true, admin });
+                              setNewPasswordInput("");
+                            }}>
+                              <Key className="mr-2 h-4 w-4" />
+                              Reset Password
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              className="text-destructive"
+                              onClick={() => setDeleteDialog({ open: true, admin })}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -385,6 +426,61 @@ export default function AdminsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={resetPasswordDialog.open} onOpenChange={(open) => {
+        setResetPasswordDialog({ open, admin: open ? resetPasswordDialog.admin : null });
+        if (!open) {
+          setNewPasswordInput("");
+          setShowNewPassword(false);
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Key className="h-5 w-5" />
+              Reset Password
+            </DialogTitle>
+            <DialogDescription>
+              Set a new password for <strong>{resetPasswordDialog.admin?.name}</strong> ({resetPasswordDialog.admin?.email})
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-password">New Password</Label>
+              <div className="relative">
+                <Input
+                  id="new-password"
+                  type={showNewPassword ? "text" : "password"}
+                  placeholder="Enter new password"
+                  value={newPasswordInput}
+                  onChange={(e) => setNewPasswordInput(e.target.value)}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full px-3"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                >
+                  {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                The user will need to use this password to log in.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetPasswordDialog({ open: false, admin: null })}>
+              Cancel
+            </Button>
+            <Button onClick={handleResetPassword} disabled={processing || !newPasswordInput}>
+              {processing ? "Resetting..." : "Reset Password"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

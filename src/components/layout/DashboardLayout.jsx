@@ -35,6 +35,8 @@ import {
   TrendingUp,
   UserCog,
   UsersRound,
+  FlaskConical,
+  UserCheck,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 
@@ -46,11 +48,13 @@ const superAdminNavItems = [
   { path: "/admins", icon: UserCog, label: "Admin Accounts" },
   { path: "/subscriptions", icon: CreditCard, label: "Subscriptions" },
   { path: "/upgrade-requests", icon: TrendingUp, label: "Upgrade Requests" },
+  { path: "/individual-requests", icon: UserCheck, label: "Individual Requests" },
   { path: "/plans", icon: Package, label: "Product Plans" },
   { path: "/users", icon: Users, label: "Users" },
   { path: "/roles", icon: Shield, label: "Roles" },
   { path: "/billing", icon: Receipt, label: "Billing" },
   { path: "/notifications", icon: Bell, label: "Notifications" },
+  { path: "/auth0-test", icon: FlaskConical, label: "Auth0 Test" },
   { path: "/settings", icon: Settings, label: "Settings" },
 ];
 

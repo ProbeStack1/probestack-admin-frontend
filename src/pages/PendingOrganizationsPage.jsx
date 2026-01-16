@@ -290,6 +290,13 @@ export default function PendingOrganizationsPage() {
                   <p className="text-sm">{selectedOrg.address}</p>
                 </div>
               )}
+
+              {selectedOrg.description && (
+                <div className="space-y-1 pt-4 border-t">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Description / Notes</p>
+                  <p className="text-sm bg-muted/50 p-3 rounded-md">{selectedOrg.description}</p>
+                </div>
+              )}
             </div>
           )}
           <DialogFooter className="gap-2 sm:gap-0">

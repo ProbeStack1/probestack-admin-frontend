@@ -61,7 +61,14 @@ export const plansApi = {
   create: (data) => api.post("/plans", data),
   update: (id, data) => api.put(`/plans/${id}`, data),
   delete: (id) => api.delete(`/plans/${id}`),
+  // Plan Tools APIs
+  getTools: (planId) => api.get(`/plans/${planId}/tools`),
+  createTool: (planId, data) => api.post(`/plans/${planId}/tools`, data),
+  updateTool: (planId, toolId, data) => api.put(`/plans/${planId}/tools/${toolId}`, data),
+  deleteTool: (planId, toolId) => api.delete(`/plans/${planId}/tools/${toolId}`),
+  calculatePrice: (planId, toolIds) => api.get(`/plans/${planId}/calculate-price`, { params: { tool_ids: toolIds.join(",") } }),
 };
+
 
 export const usersApi = {
   getAll: (params) => api.get("/users", { params }),

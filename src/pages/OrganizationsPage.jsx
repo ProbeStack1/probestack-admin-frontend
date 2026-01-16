@@ -3,6 +3,8 @@ import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Textarea } from "../components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -34,7 +36,7 @@ import {
 } from "../components/ui/dropdown-menu";
 import { organizationsApi } from "../lib/api";
 import { toast } from "sonner";
-import { Building2, Search, MoreVertical, Trash2, Eye, Mail, Phone, Globe } from "lucide-react";
+import { Building2, Search, MoreVertical, Trash2, Eye, Mail, Phone, Globe, Edit, Hash, AtSign } from "lucide-react";
 import { format } from "date-fns";
 
 export default function OrganizationsPage() {
@@ -45,6 +47,13 @@ export default function OrganizationsPage() {
   const [selectedOrg, setSelectedOrg] = useState(null);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editData, setEditData] = useState({
+    external_org_id: "",
+    auth0_org_id: "",
+    supported_domains: "",
+  });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchOrganizations();
@@ -71,6 +80,43 @@ export default function OrganizationsPage() {
       setShowDeleteDialog(false);
     } catch (error) {
       toast.error("Failed to delete organization");
+    }
+  };
+
+  const openEditDialog = (org) => {
+    setSelectedOrg(org);
+    setEditData({
+      external_org_id: org.external_org_id || "",
+      auth0_org_id: org.auth0_org_id || "",
+      supported_domains: org.supported_domains ? org.supported_domains.join(", ") : "",
+    });
+    setShowEditDialog(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedOrg) return;
+    setSaving(true);
+    try {
+      // Parse supported domains from comma-separated string
+      const domainsArray = editData.supported_domains
+        .split(",")
+        .map(d => d.trim())
+        .filter(d => d.length > 0)
+        .map(d => d.startsWith("@") ? d : `@${d}`);  // Ensure @ prefix
+
+      await organizationsApi.update(selectedOrg.id, {
+        external_org_id: editData.external_org_id || null,
+        auth0_org_id: editData.auth0_org_id || null,
+        supported_domains: domainsArray.length > 0 ? domainsArray : null,
+      });
+      toast.success("Organization updated successfully");
+      fetchOrganizations();
+      setShowEditDialog(false);
+    } catch (error) {
+      const message = error.response?.data?.detail || "Failed to update organization";
+      toast.error(message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -152,6 +198,7 @@ export default function OrganizationsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Organization</TableHead>
+                  <TableHead>External ID</TableHead>
                   <TableHead>Contact</TableHead>
                   <TableHead>Plan</TableHead>
                   <TableHead>Status</TableHead>
@@ -172,6 +219,15 @@ export default function OrganizationsPage() {
                           <p className="text-xs text-muted-foreground">{org.domain || "No domain"}</p>
                         </div>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {org.external_org_id ? (
+                        <Badge variant="outline" className="font-mono text-xs">
+                          {org.external_org_id}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Not set</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div>
@@ -197,6 +253,10 @@ export default function OrganizationsPage() {
                           <DropdownMenuItem onClick={() => { setSelectedOrg(org); setShowDetailDialog(true); }}>
                             <Eye className="mr-2 h-4 w-4" />
                             View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openEditDialog(org)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit Integration
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => { setSelectedOrg(org); setShowDeleteDialog(true); }}
@@ -284,6 +344,48 @@ export default function OrganizationsPage() {
                   <p className="text-sm text-destructive">{selectedOrg.rejection_reason}</p>
                 </div>
               )}
+
+              {/* Integration Settings */}
+              {selectedOrg.status === "approved" && (
+                <div className="pt-4 border-t space-y-3">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Integration Settings</p>
+                  <div className="flex items-center gap-3 text-sm">
+                    <Hash className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">External Org ID:</span>
+                    {selectedOrg.external_org_id ? (
+                      <Badge variant="outline" className="font-mono">{selectedOrg.external_org_id}</Badge>
+                    ) : (
+                      <span className="text-muted-foreground italic">Not configured</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 text-sm">
+                    <Globe className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Auth0 Org ID:</span>
+                    {selectedOrg.auth0_org_id ? (
+                      <Badge variant="outline" className="font-mono">{selectedOrg.auth0_org_id}</Badge>
+                    ) : (
+                      <span className="text-muted-foreground italic">Not configured</span>
+                    )}
+                  </div>
+                  <div className="flex items-start gap-3 text-sm">
+                    <AtSign className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <div>
+                      <span className="text-muted-foreground">Supported Domains:</span>
+                      {selectedOrg.supported_domains && selectedOrg.supported_domains.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {selectedOrg.supported_domains.map((domain) => (
+                            <Badge key={domain} variant="secondary" className="font-mono text-xs">
+                              {domain}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground italic ml-1">Not configured</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
@@ -304,6 +406,65 @@ export default function OrganizationsPage() {
             </Button>
             <Button variant="destructive" onClick={handleDelete} data-testid="confirm-delete-btn">
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Integration Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent data-testid="edit-dialog">
+          <DialogHeader>
+            <DialogTitle>Edit Integration Settings</DialogTitle>
+            <DialogDescription>
+              Configure external app integration for {selectedOrg?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="external_org_id">External Organization ID</Label>
+              <Input
+                id="external_org_id"
+                placeholder="e.g., KRE, TECHCORP, ORG123"
+                value={editData.external_org_id}
+                onChange={(e) => setEditData({ ...editData, external_org_id: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Unique identifier used by external apps to reference this organization
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="auth0_org_id">Auth0 Organization ID</Label>
+              <Input
+                id="auth0_org_id"
+                placeholder="e.g., org_SVFows90OrYpzdIs"
+                value={editData.auth0_org_id}
+                onChange={(e) => setEditData({ ...editData, auth0_org_id: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Auth0 organization ID (starts with org_). Get this from your Auth0 dashboard.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="supported_domains">Supported Email Domains</Label>
+              <Textarea
+                id="supported_domains"
+                placeholder="@kre.com, @probestack.io"
+                value={editData.supported_domains}
+                onChange={(e) => setEditData({ ...editData, supported_domains: e.target.value })}
+                rows={3}
+              />
+              <p className="text-xs text-muted-foreground">
+                Comma-separated list of email domains that belong to this organization (e.g., @kre.com, @probestack.io)
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={saving}>
+              {saving ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>

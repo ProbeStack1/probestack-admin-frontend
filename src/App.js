@@ -1,7 +1,8 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { ThemeProvider } from "./context/ThemeContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { Toaster } from "./components/ui/sonner";
+import IndividualRequestsPage from "./pages/IndividualRequestsPage";
 
 // Super Admin Pages
 import LoginPage from "./pages/LoginPage";
@@ -17,6 +18,7 @@ import NotificationsPage from "./pages/NotificationsPage";
 import SettingsPage from "./pages/SettingsPage";
 import UpgradeRequestsPage from "./pages/UpgradeRequestsPage";
 import AdminsPage from "./pages/AdminsPage";
+import Auth0TestPage from "./pages/Auth0TestPage";
 
 // Org Admin Pages
 import MyDashboardPage from "./pages/MyDashboardPage";
@@ -30,9 +32,11 @@ import MyTeamPage from "./pages/MyTeamPage";
 // Layout
 import DashboardLayout from "./components/layout/DashboardLayout";
 
-const ProtectedRoute = ({ children }) => {
+/* -------------------- ROUTE GUARDS -------------------- */
+
+const ProtectedRoute = () => {
   const { isAuthenticated, loading } = useAuth();
-  
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -40,113 +44,93 @@ const ProtectedRoute = ({ children }) => {
       </div>
     );
   }
-  
+
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="login" replace />;
   }
-  
+
+  return <Outlet />;
+};
+
+const SuperAdminRoute = ({ children }) => {
+  const { isSuperAdmin, loading, isAuthenticated } = useAuth();
+
+  if (loading || !isAuthenticated) return null;
+  if (!isSuperAdmin) return <Navigate to="." replace />;
+
   return children;
 };
 
-// Route guard for Super Admin only routes - returns null for loading to prevent flicker
-const SuperAdminRoute = ({ children }) => {
-  const { isSuperAdmin, loading, isAuthenticated } = useAuth();
-  
-  if (loading) {
-    return null; // Parent already shows loading
-  }
-  
-  // If not authenticated, ProtectedRoute will handle redirect
-  if (!isAuthenticated) {
-    return null;
-  }
-  
-  if (!isSuperAdmin) {
-    return <Navigate to="/" replace />;
-  }
-  
-  return <>{children}</>;
-};
-
-// Route guard for Org Admin only routes
 const OrgAdminRoute = ({ children }) => {
   const { isOrgAdmin, loading, isAuthenticated } = useAuth();
-  
-  if (loading) {
-    return null; // Parent already shows loading
-  }
-  
-  // If not authenticated, ProtectedRoute will handle redirect
-  if (!isAuthenticated) {
-    return null;
-  }
-  
-  if (!isOrgAdmin) {
-    return <Navigate to="/" replace />;
-  }
-  
-  return <>{children}</>;
+
+  if (loading || !isAuthenticated) return null;
+  if (!isOrgAdmin) return <Navigate to="." replace />;
+
+  return children;
 };
 
-// Dynamic dashboard component that renders based on role
+/* -------------------- DASHBOARD SELECTOR -------------------- */
+
 const DynamicDashboard = () => {
   const { isSuperAdmin, loading } = useAuth();
-  
-  if (loading) {
-    return null;
-  }
-  
+  if (loading) return null;
   return isSuperAdmin ? <DashboardPage /> : <MyDashboardPage />;
 };
+
+/* -------------------- ROUTES -------------------- */
 
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <DashboardLayout />
-          </ProtectedRoute>
-        }
-      >
-        {/* Dynamic Dashboard - renders different content based on role */}
-        <Route index element={<DynamicDashboard />} />
-        
-        {/* Super Admin Only Routes */}
-        <Route path="pending-organizations" element={<SuperAdminRoute><PendingOrganizationsPage /></SuperAdminRoute>} />
-        <Route path="organizations" element={<SuperAdminRoute><OrganizationsPage /></SuperAdminRoute>} />
-        <Route path="subscriptions" element={<SuperAdminRoute><SubscriptionsPage /></SuperAdminRoute>} />
-        <Route path="plans" element={<PlansPage />} />
-        <Route path="users" element={<SuperAdminRoute><UsersPage /></SuperAdminRoute>} />
-        <Route path="roles" element={<SuperAdminRoute><RolesPage /></SuperAdminRoute>} />
-        <Route path="billing" element={<SuperAdminRoute><BillingPage /></SuperAdminRoute>} />
-        <Route path="notifications" element={<SuperAdminRoute><NotificationsPage /></SuperAdminRoute>} />
-        <Route path="upgrade-requests" element={<SuperAdminRoute><UpgradeRequestsPage /></SuperAdminRoute>} />
-        <Route path="admins" element={<SuperAdminRoute><AdminsPage /></SuperAdminRoute>} />
-        
-        {/* Org Admin Only Routes */}
-        <Route path="my-users" element={<OrgAdminRoute><MyUsersPage /></OrgAdminRoute>} />
-        <Route path="my-user-requests" element={<OrgAdminRoute><MyUserRequestsPage /></OrgAdminRoute>} />
-        <Route path="my-subscription" element={<OrgAdminRoute><MySubscriptionPage /></OrgAdminRoute>} />
-        <Route path="my-billing" element={<OrgAdminRoute><MyBillingPage /></OrgAdminRoute>} />
-        <Route path="request-upgrade" element={<OrgAdminRoute><RequestUpgradePage /></OrgAdminRoute>} />
-        <Route path="my-team" element={<OrgAdminRoute><MyTeamPage /></OrgAdminRoute>} />
-        
-        {/* Shared Routes */}
-        <Route path="settings" element={<SettingsPage />} />
+      {/* Public */}
+      <Route path="login" element={<LoginPage />} />
+
+      {/* Protected */}
+      <Route element={<ProtectedRoute />}>
+        <Route element={<DashboardLayout />}>
+          <Route index element={<DynamicDashboard />} />
+
+          {/* Super Admin */}
+          <Route path="pending-organizations" element={<SuperAdminRoute><PendingOrganizationsPage /></SuperAdminRoute>} />
+          <Route path="organizations" element={<SuperAdminRoute><OrganizationsPage /></SuperAdminRoute>} />
+          <Route path="subscriptions" element={<SuperAdminRoute><SubscriptionsPage /></SuperAdminRoute>} />
+          <Route path="users" element={<SuperAdminRoute><UsersPage /></SuperAdminRoute>} />
+          <Route path="roles" element={<SuperAdminRoute><RolesPage /></SuperAdminRoute>} />
+          <Route path="billing" element={<SuperAdminRoute><BillingPage /></SuperAdminRoute>} />
+          <Route path="notifications" element={<SuperAdminRoute><NotificationsPage /></SuperAdminRoute>} />
+          <Route path="upgrade-requests" element={<SuperAdminRoute><UpgradeRequestsPage /></SuperAdminRoute>} />
+          <Route path="admins" element={<SuperAdminRoute><AdminsPage /></SuperAdminRoute>} />
+          <Route path="individual-requests" element={<SuperAdminRoute><IndividualRequestsPage /></SuperAdminRoute>} />
+          <Route path="auth0-test" element={<SuperAdminRoute><Auth0TestPage /></SuperAdminRoute>} />
+
+          {/* Org Admin */}
+          <Route path="my-users" element={<OrgAdminRoute><MyUsersPage /></OrgAdminRoute>} />
+          <Route path="my-user-requests" element={<OrgAdminRoute><MyUserRequestsPage /></OrgAdminRoute>} />
+          <Route path="my-subscription" element={<OrgAdminRoute><MySubscriptionPage /></OrgAdminRoute>} />
+          <Route path="my-billing" element={<OrgAdminRoute><MyBillingPage /></OrgAdminRoute>} />
+          <Route path="request-upgrade" element={<OrgAdminRoute><RequestUpgradePage /></OrgAdminRoute>} />
+          <Route path="my-team" element={<OrgAdminRoute><MyTeamPage /></OrgAdminRoute>} />
+
+          {/* Shared */}
+          <Route path="plans" element={<PlansPage />} />
+          <Route path="settings" element={<SettingsPage />} />
+        </Route>
       </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
+
+      {/* Catch-all */}
+      <Route path="*" element={<Navigate to="." replace />} />
     </Routes>
   );
 }
 
-function App() {
+/* -------------------- APP ROOT -------------------- */
+
+export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <BrowserRouter>
+        <BrowserRouter basename="/admin">
           <AppRoutes />
           <Toaster position="top-right" richColors />
         </BrowserRouter>
@@ -154,5 +138,3 @@ function App() {
     </ThemeProvider>
   );
 }
-
-export default App;
