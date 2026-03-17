@@ -104,17 +104,17 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col bg-background" data-testid="login-page">
       {/* Background pattern */}
-      <div className="absolute inset-0 -z-10 h-full w-full bg-background">
-        <div className="absolute h-full w-full bg-[radial-gradient(#6366f1_1px,transparent_1px)] [background-size:16px_16px] opacity-[0.15]" />
+      <div className="absolute inset-0 -z-10 h-full w-full bg-background overflow-hidden">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-chart-5/20 rounded-full blur-[120px]" />
+        <div className="absolute h-full w-full bg-[radial-gradient(hsl(var(--primary))_0.5px,transparent_0.5px)] [background-size:24px_24px] opacity-[0.1]" />
       </div>
 
       {/* Header */}
       <header className="flex justify-between items-center p-4 md:p-6">
         <div className="flex items-center gap-2">
-          <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/25">
-            <span className="text-primary-foreground font-bold">PS</span>
-          </div>
-          <span className="font-bold text-xl tracking-tight">ProbeStack</span>
+          <img src="/admin/favicon.png" alt="Probestack Logo" className="h-10 w-10 rounded-xl shadow-lg shadow-primary/25" />
+          <span className="font-bold text-xl tracking-tight gradient-text">ProbeStack</span>
         </div>
         <Button variant="ghost" size="icon" onClick={toggleTheme} data-testid="theme-toggle">
           {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}

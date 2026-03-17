@@ -28,7 +28,7 @@ import {
   Cell,
 } from "recharts";
 
-const COLORS = ["#6366f1", "#22c55e", "#f59e0b"];
+const COLORS = ["#FF6B2C", "#22c55e", "#00D2FF"];
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -150,8 +150,8 @@ export default function DashboardPage() {
                 <AreaChart data={stats?.monthly_revenue || []}>
                   <defs>
                     <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#FF6B2C" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#FF6B2C" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -168,7 +168,7 @@ export default function DashboardPage() {
                   <Area
                     type="monotone"
                     dataKey="revenue"
-                    stroke="#6366f1"
+                    stroke="#FF6B2C"
                     strokeWidth={2}
                     fillOpacity={1}
                     fill="url(#colorRevenue)"

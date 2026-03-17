@@ -118,10 +118,8 @@ export default function DashboardLayout() {
         <div className="flex h-16 items-center justify-between px-4 border-b border-border">
           {sidebarOpen && (
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-sm">PS</span>
-              </div>
-              <span className="font-semibold text-lg">ProbeStack</span>
+              <img src="/admin/favicon.png" alt="Probestack Logo" className="h-8 w-8 rounded-lg" />
+              <span className="font-semibold text-lg gradient-text">ProbeStack</span>
             </div>
           )}
           <Button
@@ -134,36 +132,6 @@ export default function DashboardLayout() {
             <ChevronLeft className={cn("h-4 w-4 transition-transform", !sidebarOpen && "rotate-180")} />
           </Button>
         </div>
-
-        {/* Role Badge */}
-        {sidebarOpen && (
-          <div className="px-4 py-3 border-b border-border">
-            <Badge 
-              variant="outline" 
-              className={cn(
-                "w-full justify-center py-1",
-                isSuperAdmin ? "bg-red-500/10 text-red-600 border-red-200" : "bg-blue-500/10 text-blue-600 border-blue-200"
-              )}
-            >
-              {isSuperAdmin ? (
-                <>
-                  <UserCog className="h-3 w-3 mr-1" />
-                  Super Admin
-                </>
-              ) : (
-                <>
-                  <Building2 className="h-3 w-3 mr-1" />
-                  Org Admin
-                </>
-              )}
-            </Badge>
-            {isOrgAdmin && admin?.organization_name && (
-              <p className="text-xs text-muted-foreground text-center mt-1 truncate">
-                {admin.organization_name}
-              </p>
-            )}
-          </div>
-        )}
 
         {/* Navigation */}
         <ScrollArea className="flex-1 px-3 py-4">
@@ -230,10 +198,8 @@ export default function DashboardLayout() {
       >
         <div className="flex h-16 items-center justify-between px-4 border-b border-border">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">PS</span>
-            </div>
-            <span className="font-semibold text-lg">ProbeStack</span>
+            <img src="/admin/favicon.png" alt="Probestack Logo" className="h-8 w-8 rounded-lg" />
+            <span className="font-semibold text-lg gradient-text">ProbeStack</span>
           </div>
           <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)}>
             <X className="h-5 w-5" />
@@ -241,8 +207,8 @@ export default function DashboardLayout() {
         </div>
         {/* Mobile Role Badge */}
         <div className="px-4 py-3 border-b border-border">
-          <Badge 
-            variant="outline" 
+          <Badge
+            variant="outline"
             className={cn(
               "w-full justify-center py-1",
               isSuperAdmin ? "bg-red-500/10 text-red-600 border-red-200" : "bg-blue-500/10 text-blue-600 border-blue-200"
