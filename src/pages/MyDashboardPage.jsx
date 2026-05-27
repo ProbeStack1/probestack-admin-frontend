@@ -15,6 +15,7 @@ import {
   ArrowRight,
   UserPlus,
   TrendingUp,
+  Package,
 } from "lucide-react";
 
 export default function MyDashboardPage() {
@@ -64,12 +65,28 @@ export default function MyDashboardPage() {
       action: () => navigate("/my-user-requests"),
     },
     {
-      title: "Active Subscription",
-      value: stats?.subscription ? stats.subscription.plan_name : "None",
+      title: "Active Subscriptions",
+      value: stats?.active_subscriptions || 0,
       icon: CreditCard,
       color: "text-emerald-500",
       bgColor: "bg-emerald-500/10",
       action: () => navigate("/my-subscription"),
+    },
+    {
+      title: "Business Units",
+      value: stats?.total_business_units || 0,
+      icon: Building2,
+      color: "text-cyan-500",
+      bgColor: "bg-cyan-500/10",
+      action: () => navigate("/onboard-bu"),
+    },
+    {
+      title: "Teams",
+      value: stats?.total_projects || 0,
+      icon: Package,
+      color: "text-orange-500",
+      bgColor: "bg-orange-500/10",
+      action: () => navigate("/onboard-project"),
     },
     {
       title: "Total Roles",
@@ -161,11 +178,11 @@ export default function MyDashboardPage() {
       </div>
 
       {/* Subscription Details */}
-      {stats?.subscription && (
+      {(stats?.subscriptions || []).length > 0 && (
         <Card className="border-border/50">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="text-lg">Current Subscription</CardTitle>
+              <CardTitle className="text-lg">Current Subscriptions</CardTitle>
               <CardDescription>Your active plan details</CardDescription>
             </div>
             <Button variant="outline" size="sm" onClick={() => navigate("/my-subscription")}>
@@ -174,25 +191,29 @@ export default function MyDashboardPage() {
             </Button>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Plan</p>
-                <p className="font-semibold">{stats.subscription.plan_name}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Status</p>
-                <Badge variant="outline" className="status-active">
-                  {stats.subscription.status}
-                </Badge>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Amount</p>
-                <p className="font-semibold">${stats.subscription.amount}/mo</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Billing Cycle</p>
-                <p className="font-semibold capitalize">{stats.subscription.billing_cycle}</p>
-              </div>
+            <div className="space-y-4">
+              {(stats.subscriptions || []).map((subscription) => (
+                <div key={subscription.id} className="grid grid-cols-2 md:grid-cols-4 gap-4 rounded-md border p-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Plan</p>
+                    <p className="font-semibold">{subscription.plan_name}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Status</p>
+                    <Badge variant="outline" className="status-active">
+                      {subscription.status}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Amount</p>
+                    <p className="font-semibold">${subscription.amount}/mo</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Billing Cycle</p>
+                    <p className="font-semibold capitalize">{subscription.billing_cycle}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
@@ -213,6 +234,14 @@ export default function MyDashboardPage() {
             <Button variant="outline" onClick={() => navigate("/my-user-requests")}>
               <UserPlus className="mr-2 h-4 w-4" />
               User Requests
+            </Button>
+            <Button variant="outline" onClick={() => navigate("/onboard-bu")}>
+              <Building2 className="mr-2 h-4 w-4" />
+              Onboard BU
+            </Button>
+            <Button variant="outline" onClick={() => navigate("/onboard-project")}>
+              <Package className="mr-2 h-4 w-4" />
+              Onboard Team
             </Button>
             <Button variant="outline" onClick={() => navigate("/my-billing")}>
               <Receipt className="mr-2 h-4 w-4" />

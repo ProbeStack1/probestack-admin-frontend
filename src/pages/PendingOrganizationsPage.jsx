@@ -297,6 +297,28 @@ export default function PendingOrganizationsPage() {
                   <p className="text-sm bg-muted/50 p-3 rounded-md">{selectedOrg.description}</p>
                 </div>
               )}
+
+              <div className="space-y-3 pt-4 border-t">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Gateway Onboarding</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Region</p>
+                    <p className="font-medium">{selectedOrg.gateway_region || "Not provided"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Gateway Org Name</p>
+                    <p className="font-medium">{selectedOrg.gateway_organization_name || "Not provided"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Environment Type</p>
+                    <p className="font-medium">{selectedOrg.gateway_environment_type || "Not provided"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Environments</p>
+                    <p className="font-medium">{(selectedOrg.gateway_environments || []).join(", ") || "Not provided"}</p>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
           <DialogFooter className="gap-2 sm:gap-0">

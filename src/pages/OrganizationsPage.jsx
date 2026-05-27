@@ -36,8 +36,32 @@ import {
 } from "../components/ui/dropdown-menu";
 import { organizationsApi } from "../lib/api";
 import { toast } from "sonner";
-import { Building2, Search, MoreVertical, Trash2, Eye, Mail, Phone, Globe, Edit, Hash, AtSign } from "lucide-react";
+import { Building2, Search, MoreVertical, Trash2, Eye, Mail, Phone, Globe, Edit, Hash, AtSign, Plus, Layers3, Users } from "lucide-react";
 import { format } from "date-fns";
+
+const parseList = (value) =>
+  value
+    .split(/[\n,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+const formatList = (value) => (Array.isArray(value) ? value.join(", ") : "");
+
+const emptyCreateData = {
+  name: "",
+  email: "",
+  domain: "",
+  requested_plans: "",
+  requested_tools: "",
+  contact_person: "",
+  phone: "",
+  address: "",
+  description: "",
+  gateway_region: "",
+  gateway_organization_name: "",
+  gateway_environment_type: "",
+  gateway_environments: "",
+};
 
 export default function OrganizationsPage() {
   const [organizations, setOrganizations] = useState([]);
@@ -46,13 +70,22 @@ export default function OrganizationsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedOrg, setSelectedOrg] = useState(null);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
+  const [orgStructure, setOrgStructure] = useState({ business_units: [], teams: [], team_members: [] });
+  const [loadingStructure, setLoadingStructure] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [createData, setCreateData] = useState(emptyCreateData);
   const [editData, setEditData] = useState({
     external_org_id: "",
     auth0_org_id: "",
     supported_domains: "",
+    gateway_region: "",
+    gateway_organization_name: "",
+    gateway_environment_type: "",
+    gateway_environments: "",
   });
+  const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -83,14 +116,115 @@ export default function OrganizationsPage() {
     }
   };
 
+  const handleCreate = async () => {
+    const requestedPlans = parseList(createData.requested_plans);
+    const requestedTools = parseList(createData.requested_tools);
+    if (!createData.name.trim() || !createData.email.trim() || !createData.contact_person.trim()) {
+      toast.error("Organization name, email, and contact person are required");
+      return;
+    }
+    if (requestedPlans.length === 0 || requestedTools.length === 0) {
+      toast.error("At least one requested plan and tool is required");
+      return;
+    }
+
+    setCreating(true);
+    try {
+      await organizationsApi.create({
+        name: createData.name.trim(),
+        email: createData.email.trim(),
+        domain: createData.domain.trim() || null,
+        requested_plans: requestedPlans,
+        requested_tools: requestedTools,
+        contact_person: createData.contact_person.trim(),
+        phone: createData.phone.trim() || null,
+        address: createData.address.trim() || null,
+        description: createData.description.trim() || null,
+        gateway_region: createData.gateway_region.trim() || null,
+        gateway_organization_name: createData.gateway_organization_name.trim() || null,
+        gateway_environment_type: createData.gateway_environment_type.trim() || null,
+        gateway_environments: parseList(createData.gateway_environments),
+      });
+      toast.success("Organization added successfully");
+      setCreateData(emptyCreateData);
+      setShowCreateDialog(false);
+      fetchOrganizations();
+    } catch (error) {
+      const message = error.response?.data?.detail || "Failed to add organization";
+      toast.error(typeof message === "string" ? message : "Failed to add organization");
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const openEditDialog = (org) => {
     setSelectedOrg(org);
     setEditData({
       external_org_id: org.external_org_id || "",
       auth0_org_id: org.auth0_org_id || "",
-      supported_domains: org.supported_domains ? org.supported_domains.join(", ") : "",
+      supported_domains: formatList(org.supported_domains || []),
+      gateway_region: org.gateway_region || "",
+      gateway_organization_name: org.gateway_organization_name || "",
+      gateway_environment_type: org.gateway_environment_type || "",
+      gateway_environments: formatList(org.gateway_environments || []),
     });
     setShowEditDialog(true);
+  };
+
+  const openDetailDialog = async (org) => {
+    setSelectedOrg(org);
+    setOrgStructure({ business_units: [], teams: [], team_members: [] });
+    setShowDetailDialog(true);
+    setLoadingStructure(true);
+    try {
+      const response = await organizationsApi.getDetails(org.id);
+      setSelectedOrg(response.data.organization || org);
+      setOrgStructure({
+        business_units: response.data.business_units || [],
+        teams: response.data.teams || [],
+        team_members: response.data.team_members || [],
+      });
+    } catch (error) {
+      toast.error("Failed to load organization BUs and teams");
+    } finally {
+      setLoadingStructure(false);
+    }
+  };
+
+  const getTeamsForBu = (businessUnitId) =>
+    (orgStructure.teams || []).filter((team) => team.business_unit_id === businessUnitId);
+
+  const getUnassignedTeams = () =>
+    (orgStructure.teams || []).filter((team) => !team.business_unit_id);
+
+  const getMembersForTeam = (teamId) =>
+    (orgStructure.team_members || []).filter((member) => member.project_id === teamId);
+
+  const renderTeamSummary = (team) => {
+    const teamMembers = getMembersForTeam(team.id);
+    return (
+      <div key={team.id} className="rounded-md bg-muted/50 px-3 py-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-medium">{team.name}</p>
+            <p className="text-xs text-muted-foreground">{team.description || team.code || "No description"}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline">{team.status || "active"}</Badge>
+            <Badge variant="secondary">{teamMembers.length} member(s)</Badge>
+          </div>
+        </div>
+        {teamMembers.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {teamMembers.map((member) => (
+              <Badge key={member.id} variant="outline" className="text-xs">
+                {member.name || member.email}
+              </Badge>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   const handleSaveEdit = async () => {
@@ -108,6 +242,10 @@ export default function OrganizationsPage() {
         external_org_id: editData.external_org_id || null,
         auth0_org_id: editData.auth0_org_id || null,
         supported_domains: domainsArray.length > 0 ? domainsArray : null,
+        gateway_region: editData.gateway_region || null,
+        gateway_organization_name: editData.gateway_organization_name || null,
+        gateway_environment_type: editData.gateway_environment_type || null,
+        gateway_environments: parseList(editData.gateway_environments),
       });
       toast.success("Organization updated successfully");
       fetchOrganizations();
@@ -150,9 +288,15 @@ export default function OrganizationsPage() {
   return (
     <div className="space-y-6 animate-fade-in" data-testid="organizations-page">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">All Organizations</h1>
-        <p className="text-muted-foreground mt-1">Manage all registered organizations</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">All Organizations</h1>
+          <p className="text-muted-foreground mt-1">Manage all registered organizations</p>
+        </div>
+        <Button onClick={() => setShowCreateDialog(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Organization
+        </Button>
       </div>
 
       {/* Filters */}
@@ -250,7 +394,7 @@ export default function OrganizationsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => { setSelectedOrg(org); setShowDetailDialog(true); }}>
+                          <DropdownMenuItem onClick={() => openDetailDialog(org)}>
                             <Eye className="mr-2 h-4 w-4" />
                             View Details
                           </DropdownMenuItem>
@@ -276,9 +420,68 @@ export default function OrganizationsPage() {
         </CardContent>
       </Card>
 
+      {/* Create Organization Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl" data-testid="create-org-dialog">
+          <DialogHeader>
+            <DialogTitle>Add Organization</DialogTitle>
+            <DialogDescription>
+              Create a new organization request from the admin dashboard. Gateway fields are optional.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4 md:grid-cols-2">
+            <CreateInput label="Organization Name" value={createData.name} onChange={(value) => setCreateData({ ...createData, name: value })} required />
+            <CreateInput label="Organization Email" type="email" value={createData.email} onChange={(value) => setCreateData({ ...createData, email: value })} required />
+            <CreateInput label="Domain" placeholder="example.com" value={createData.domain} onChange={(value) => setCreateData({ ...createData, domain: value })} />
+            <CreateInput label="Contact Person" value={createData.contact_person} onChange={(value) => setCreateData({ ...createData, contact_person: value })} required />
+            <CreateInput label="Phone" value={createData.phone} onChange={(value) => setCreateData({ ...createData, phone: value })} />
+            <CreateInput label="Requested Plans" placeholder="plan_api_enterprise, plan_ai_enterprise" value={createData.requested_plans} onChange={(value) => setCreateData({ ...createData, requested_plans: value })} required />
+            <div className="space-y-2 md:col-span-2">
+              <Label>Requested Tools</Label>
+              <Textarea
+                placeholder="API Design Studio, Data Modelling"
+                value={createData.requested_tools}
+                onChange={(e) => setCreateData({ ...createData, requested_tools: e.target.value })}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>Address</Label>
+              <Textarea
+                placeholder="Optional organization address"
+                value={createData.address}
+                onChange={(e) => setCreateData({ ...createData, address: e.target.value })}
+                rows={2}
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>Description</Label>
+              <Textarea
+                placeholder="Optional notes"
+                value={createData.description}
+                onChange={(e) => setCreateData({ ...createData, description: e.target.value })}
+                rows={2}
+              />
+            </div>
+            <CreateInput label="Gateway Region" placeholder="LATAM" value={createData.gateway_region} onChange={(value) => setCreateData({ ...createData, gateway_region: value })} />
+            <CreateInput label="Gateway Organization Name" placeholder="as-2" value={createData.gateway_organization_name} onChange={(value) => setCreateData({ ...createData, gateway_organization_name: value })} />
+            <CreateInput label="Environment Type" placeholder="prod or non-prod" value={createData.gateway_environment_type} onChange={(value) => setCreateData({ ...createData, gateway_environment_type: value })} />
+            <CreateInput label="Gateway Environments" placeholder="preprod, prod, staging, custom" value={createData.gateway_environments} onChange={(value) => setCreateData({ ...createData, gateway_environments: value })} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreate} disabled={creating}>
+              {creating ? "Adding..." : "Add Organization"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Detail Dialog */}
       <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
-        <DialogContent className="max-w-lg" data-testid="detail-dialog">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl" data-testid="detail-dialog">
           <DialogHeader>
             <DialogTitle>Organization Details</DialogTitle>
           </DialogHeader>
@@ -386,6 +589,109 @@ export default function OrganizationsPage() {
                   </div>
                 </div>
               )}
+
+              <div className="pt-4 border-t space-y-3">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Gateway Onboarding</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Region</p>
+                    <p className="font-medium">{selectedOrg.gateway_region || "Not configured"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Gateway Org Name</p>
+                    <p className="font-medium">{selectedOrg.gateway_organization_name || "Not configured"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Environment Type</p>
+                    <p className="font-medium">{selectedOrg.gateway_environment_type || "Not configured"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Environments</p>
+                    <div className="flex flex-wrap gap-1">
+                      {(selectedOrg.gateway_environments || []).length > 0 ? (
+                        selectedOrg.gateway_environments.map((environment) => (
+                          <Badge key={environment} variant="outline" className="text-xs">
+                            {environment}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Not configured</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t space-y-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Business Units and Teams</p>
+                    <p className="text-sm text-muted-foreground">
+                      {orgStructure.business_units.length} BU(s), {orgStructure.teams.length} team(s), {orgStructure.team_members.length} member(s)
+                    </p>
+                  </div>
+                </div>
+
+                {loadingStructure ? (
+                  <div className="flex items-center justify-center rounded-lg border py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                  </div>
+                ) : orgStructure.business_units.length === 0 && orgStructure.teams.length === 0 ? (
+                  <div className="rounded-lg border border-dashed p-6 text-center">
+                    <Layers3 className="mx-auto h-8 w-8 text-muted-foreground" />
+                    <p className="mt-2 font-medium">No business units onboarded</p>
+                    <p className="text-sm text-muted-foreground">BUs and teams will appear here once this organization onboards them.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {orgStructure.business_units.map((bu) => {
+                      const buTeams = getTeamsForBu(bu.id);
+                      return (
+                        <div key={bu.id} className="rounded-lg border p-4">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h4 className="font-semibold">{bu.name}</h4>
+                                <Badge variant="outline">{bu.status || "active"}</Badge>
+                                {bu.code && <Badge variant="secondary">{bu.code}</Badge>}
+                              </div>
+                              <div className="mt-2 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
+                                <span>Application: <span className="font-medium text-foreground">{bu.application_name || "-"}</span></span>
+                                <span>Owner: <span className="font-medium text-foreground">{bu.owner_name || "-"}</span></span>
+                                <span>Members: <span className="font-medium text-foreground">{bu.members_count ?? 0}</span></span>
+                                <span>Consumers: <span className="font-medium text-foreground">{bu.consumers_count ?? 0}</span></span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Users className="h-4 w-4" />
+                              {buTeams.length} team(s)
+                            </div>
+                          </div>
+
+                          <div className="mt-4 space-y-2">
+                            {buTeams.length === 0 ? (
+                              <p className="rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground">No teams onboarded for this BU.</p>
+                            ) : (
+                              buTeams.map((team) => renderTeamSummary(team))
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {getUnassignedTeams().length > 0 && (
+                      <div className="rounded-lg border border-dashed p-4">
+                        <div className="flex items-center gap-2">
+                          <Layers3 className="h-4 w-4 text-muted-foreground" />
+                          <h4 className="font-semibold">Teams Without BU</h4>
+                        </div>
+                        <div className="mt-4 space-y-2">
+                          {getUnassignedTeams().map((team) => renderTeamSummary(team))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </DialogContent>
@@ -458,6 +764,44 @@ export default function OrganizationsPage() {
                 Comma-separated list of email domains that belong to this organization (e.g., @kre.com, @probestack.io)
               </p>
             </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="gateway_region">Gateway Region</Label>
+                <Input
+                  id="gateway_region"
+                  placeholder="LATAM"
+                  value={editData.gateway_region}
+                  onChange={(e) => setEditData({ ...editData, gateway_region: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="gateway_organization_name">Gateway Organization Name</Label>
+                <Input
+                  id="gateway_organization_name"
+                  placeholder="as-2"
+                  value={editData.gateway_organization_name}
+                  onChange={(e) => setEditData({ ...editData, gateway_organization_name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="gateway_environment_type">Environment Type</Label>
+                <Input
+                  id="gateway_environment_type"
+                  placeholder="prod or non-prod"
+                  value={editData.gateway_environment_type}
+                  onChange={(e) => setEditData({ ...editData, gateway_environment_type: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="gateway_environments">Gateway Environments</Label>
+                <Input
+                  id="gateway_environments"
+                  placeholder="preprod, prod, staging, custom"
+                  value={editData.gateway_environments}
+                  onChange={(e) => setEditData({ ...editData, gateway_environments: e.target.value })}
+                />
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditDialog(false)}>
@@ -469,6 +813,15 @@ export default function OrganizationsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function CreateInput({ label, onChange, ...props }) {
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <Input {...props} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
 }

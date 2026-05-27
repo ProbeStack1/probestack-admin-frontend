@@ -35,10 +35,15 @@ import { formatDistanceToNow } from "date-fns";
 export default function MyUserRequestsPage() {
   const [requests, setRequests] = useState([]);
   const [roles, setRoles] = useState([]);
+  const [businessUnits, setBusinessUnits] = useState([]);
+  const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [approveDialog, setApproveDialog] = useState({ open: false, request: null });
   const [rejectDialog, setRejectDialog] = useState({ open: false, request: null });
   const [selectedRole, setSelectedRole] = useState("");
+  const [selectedBusinessUnit, setSelectedBusinessUnit] = useState("");
+  const [selectedTeam, setSelectedTeam] = useState("");
+  const [selectedTeamRole, setSelectedTeamRole] = useState("member");
   const [rejectReason, setRejectReason] = useState("");
 
   useEffect(() => {
@@ -47,12 +52,16 @@ export default function MyUserRequestsPage() {
 
   const fetchData = async () => {
     try {
-      const [requestsRes, rolesRes] = await Promise.all([
+      const [requestsRes, rolesRes, businessUnitsRes, teamsRes] = await Promise.all([
         myOrganizationApi.getUserRequests(),
         myOrganizationApi.getRoles(),
+        myOrganizationApi.getBusinessUnits(),
+        myOrganizationApi.getProjects(),
       ]);
       setRequests(requestsRes.data);
       setRoles(rolesRes.data);
+      setBusinessUnits(businessUnitsRes.data);
+      setTeams(teamsRes.data);
     } catch (error) {
       toast.error("Failed to load data");
     } finally {
@@ -61,12 +70,17 @@ export default function MyUserRequestsPage() {
   };
 
   const handleApprove = async () => {
-    if (!approveDialog.request || !selectedRole) {
-      toast.error("Please select a role");
+    if (!approveDialog.request || !selectedRole || !selectedBusinessUnit || !selectedTeam) {
+      toast.error("Please select role, BU, and team");
       return;
     }
     try {
-      await myOrganizationApi.approveUserRequest(approveDialog.request.id, selectedRole);
+      await myOrganizationApi.approveUserRequest(approveDialog.request.id, {
+        role_id: selectedRole,
+        business_unit_id: selectedBusinessUnit,
+        project_id: selectedTeam,
+        project_role: selectedTeamRole,
+      });
       toast.success("User request approved");
       fetchData();
     } catch (error) {
@@ -74,6 +88,9 @@ export default function MyUserRequestsPage() {
     } finally {
       setApproveDialog({ open: false, request: null });
       setSelectedRole("");
+      setSelectedBusinessUnit("");
+      setSelectedTeam("");
+      setSelectedTeamRole("member");
     }
   };
 
@@ -93,6 +110,7 @@ export default function MyUserRequestsPage() {
 
   const pendingRequests = requests.filter((r) => r.status === "pending");
   const processedRequests = requests.filter((r) => r.status !== "pending");
+  const filteredTeams = teams.filter((team) => team.business_unit_id === selectedBusinessUnit);
 
   return (
     <div className="space-y-6" data-testid="my-user-requests-page">
@@ -163,6 +181,7 @@ export default function MyUserRequestsPage() {
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>BU / Team</TableHead>
                     <TableHead>Processed</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -173,6 +192,16 @@ export default function MyUserRequestsPage() {
                       <TableCell>{request.email}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={request.status === "approved" ? "status-approved" : "status-rejected"}>{request.status}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {request.approved_business_unit || request.approved_team ? (
+                          <div>
+                            <p className="font-medium">{request.approved_business_unit?.name || "-"}</p>
+                            <p className="text-xs text-muted-foreground">{request.approved_team?.name || "-"}</p>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         {request.approved_at || request.rejected_at
@@ -204,10 +233,49 @@ export default function MyUserRequestsPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label>Business Unit</Label>
+              <Select
+                value={selectedBusinessUnit}
+                onValueChange={(value) => {
+                  setSelectedBusinessUnit(value);
+                  setSelectedTeam("");
+                }}
+              >
+                <SelectTrigger><SelectValue placeholder="Select a BU" /></SelectTrigger>
+                <SelectContent>
+                  {businessUnits.map((businessUnit) => (
+                    <SelectItem key={businessUnit.id} value={businessUnit.id}>{businessUnit.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Team</Label>
+              <Select value={selectedTeam} onValueChange={setSelectedTeam} disabled={!selectedBusinessUnit}>
+                <SelectTrigger><SelectValue placeholder="Select a team" /></SelectTrigger>
+                <SelectContent>
+                  {filteredTeams.map((team) => (
+                    <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Team Role</Label>
+              <Select value={selectedTeamRole} onValueChange={setSelectedTeamRole}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="member">Member</SelectItem>
+                  <SelectItem value="manager">Manager</SelectItem>
+                  <SelectItem value="viewer">Viewer</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setApproveDialog({ open: false, request: null })}>Cancel</Button>
-            <Button onClick={handleApprove} disabled={!selectedRole}>Approve User</Button>
+            <Button onClick={handleApprove} disabled={!selectedRole || !selectedBusinessUnit || !selectedTeam}>Approve User</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

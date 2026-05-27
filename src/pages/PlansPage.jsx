@@ -41,7 +41,7 @@ import { plansApi } from "../lib/api";
 import { toast } from "sonner";
 import { 
   Plus, Edit, Trash2, Check, Package, Zap, ArrowLeftRight, 
-  DollarSign, Settings2, GripVertical, ToggleLeft, RefreshCw
+  Settings2, GripVertical, RefreshCw
 } from "lucide-react";
 
 const TOOLS = [
@@ -74,15 +74,13 @@ export default function PlansPage() {
     tool: "api_platform",
     description: "",
     features: "",
-    price_monthly: "",
-    price_yearly: "",
+    api_limit: "",
+    cost: "",
   });
   
   const [toolFormData, setToolFormData] = useState({
     name: "",
     description: "",
-    price_monthly: "",
-    price_yearly: "",
     display_order: 0,
   });
 
@@ -107,8 +105,8 @@ export default function PlansPage() {
       const data = {
         ...planFormData,
         features: planFormData.features.split("\n").filter((f) => f.trim()),
-        price_monthly: parseFloat(planFormData.price_monthly) || 0,
-        price_yearly: parseFloat(planFormData.price_yearly) || 0,
+        api_limit: parseInt(planFormData.api_limit) || 0,
+        cost: parseFloat(planFormData.cost) || 0,
       };
       await plansApi.create(data);
       toast.success("Plan created successfully");
@@ -126,8 +124,8 @@ export default function PlansPage() {
       const data = {
         ...planFormData,
         features: planFormData.features.split("\n").filter((f) => f.trim()),
-        price_monthly: parseFloat(planFormData.price_monthly) || 0,
-        price_yearly: parseFloat(planFormData.price_yearly) || 0,
+        api_limit: parseInt(planFormData.api_limit) || 0,
+        cost: parseFloat(planFormData.cost) || 0,
       };
       await plansApi.update(selectedPlan.id, data);
       toast.success("Plan updated successfully");
@@ -158,8 +156,6 @@ export default function PlansPage() {
     try {
       const data = {
         ...toolFormData,
-        price_monthly: parseFloat(toolFormData.price_monthly) || 0,
-        price_yearly: parseFloat(toolFormData.price_yearly) || 0,
         display_order: parseInt(toolFormData.display_order) || 0,
       };
       await plansApi.createTool(managingPlanId, data);
@@ -177,8 +173,6 @@ export default function PlansPage() {
     try {
       const data = {
         ...toolFormData,
-        price_monthly: parseFloat(toolFormData.price_monthly) || 0,
-        price_yearly: parseFloat(toolFormData.price_yearly) || 0,
         display_order: parseInt(toolFormData.display_order) || 0,
       };
       await plansApi.updateTool(managingPlanId, selectedPlanTool.id, data);
@@ -222,8 +216,8 @@ export default function PlansPage() {
       tool: plan.tool,
       description: plan.description,
       features: plan.features?.join("\n") || "",
-      price_monthly: plan.price_monthly.toString(),
-      price_yearly: plan.price_yearly.toString(),
+      api_limit: (plan.api_limit || 0).toString(),
+      cost: (plan.cost ?? plan.price_monthly ?? 0).toString(),
     });
     setShowEditPlanDialog(true);
   };
@@ -246,8 +240,6 @@ export default function PlansPage() {
     setToolFormData({
       name: tool.name,
       description: tool.description || "",
-      price_monthly: tool.price_monthly.toString(),
-      price_yearly: tool.price_yearly.toString(),
       display_order: tool.display_order || 0,
     });
     setShowEditToolDialog(true);
@@ -259,8 +251,8 @@ export default function PlansPage() {
       tool: "api_platform",
       description: "",
       features: "",
-      price_monthly: "",
-      price_yearly: "",
+      api_limit: "",
+      cost: "",
     });
     setSelectedPlan(null);
   };
@@ -269,23 +261,12 @@ export default function PlansPage() {
     setToolFormData({
       name: "",
       description: "",
-      price_monthly: "",
-      price_yearly: "",
       display_order: 0,
     });
     setSelectedPlanTool(null);
   };
 
   const currentTool = TOOLS.find((t) => t.id === selectedTool);
-
-  const calculateTotalToolsPrice = (planTools) => {
-    if (!planTools || planTools.length === 0) return { monthly: 0, yearly: 0 };
-    const activeTools = planTools.filter(t => t.is_active);
-    return {
-      monthly: activeTools.reduce((sum, t) => sum + (t.price_monthly || 0), 0),
-      yearly: activeTools.reduce((sum, t) => sum + (t.price_yearly || 0), 0),
-    };
-  };
 
   if (loading) {
     return (
@@ -301,7 +282,7 @@ export default function PlansPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Product Plans</h1>
-          <p className="text-muted-foreground mt-1">Manage plans and configure tools with pricing</p>
+          <p className="text-muted-foreground mt-1">Manage plan limits, manual cost, and selectable tools</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={fetchPlans}>
@@ -360,7 +341,7 @@ export default function PlansPage() {
             ) : (
               <div className="space-y-6">
                 {plans.map((plan) => {
-                  const toolsPrice = calculateTotalToolsPrice(plan.plan_tools);
+                  const planCost = plan.cost ?? plan.price_monthly ?? 0;
                   return (
                     <Card key={plan.id} className="border-border/50" data-testid={`plan-card-${plan.id}`}>
                       <CardHeader>
@@ -396,24 +377,20 @@ export default function PlansPage() {
                           </div>
                         </div>
                         
-                        {/* Pricing Summary */}
+                        {/* Plan Summary */}
                         <div className="mt-4 p-4 bg-muted/50 rounded-lg">
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                             <div>
-                              <p className="text-muted-foreground">Base Price</p>
-                              <p className="font-semibold">${plan.price_monthly}/mo</p>
+                              <p className="text-muted-foreground">APIs Supported</p>
+                              <p className="font-semibold">{plan.api_limit || 0}</p>
                             </div>
                             <div>
-                              <p className="text-muted-foreground">Tools Price</p>
-                              <p className="font-semibold">${toolsPrice.monthly}/mo</p>
+                              <p className="text-muted-foreground">Manual Cost</p>
+                              <p className="font-bold text-lg text-primary">${planCost}</p>
                             </div>
                             <div>
-                              <p className="text-muted-foreground">Total Monthly</p>
-                              <p className="font-bold text-lg text-primary">${plan.price_monthly + toolsPrice.monthly}</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground">Total Yearly</p>
-                              <p className="font-bold text-lg text-primary">${plan.price_yearly + toolsPrice.yearly}</p>
+                              <p className="text-muted-foreground">Active Tools</p>
+                              <p className="font-semibold">{(plan.plan_tools || []).filter((toolItem) => toolItem.is_active).length}</p>
                             </div>
                           </div>
                         </div>
@@ -446,8 +423,6 @@ export default function PlansPage() {
                                           <TableHead className="w-[50px]">Order</TableHead>
                                           <TableHead>Tool Name</TableHead>
                                           <TableHead>Description</TableHead>
-                                          <TableHead className="text-right">Monthly</TableHead>
-                                          <TableHead className="text-right">Yearly</TableHead>
                                           <TableHead className="text-center">Active</TableHead>
                                           <TableHead className="text-right">Actions</TableHead>
                                         </TableRow>
@@ -463,8 +438,6 @@ export default function PlansPage() {
                                             <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">
                                               {planTool.description || "-"}
                                             </TableCell>
-                                            <TableCell className="text-right">${planTool.price_monthly}</TableCell>
-                                            <TableCell className="text-right">${planTool.price_yearly}</TableCell>
                                             <TableCell className="text-center">
                                               <Switch
                                                 checked={planTool.is_active}
@@ -596,23 +569,23 @@ export default function PlansPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Base Monthly Price ($)</Label>
+                <Label>APIs Supported</Label>
                 <Input
                   type="number"
-                  placeholder="0.00"
-                  value={planFormData.price_monthly}
-                  onChange={(e) => setPlanFormData({ ...planFormData, price_monthly: e.target.value })}
-                  data-testid="plan-price-monthly-input"
+                  placeholder="0 for unlimited"
+                  value={planFormData.api_limit}
+                  onChange={(e) => setPlanFormData({ ...planFormData, api_limit: e.target.value })}
+                  data-testid="plan-api-limit-input"
                 />
               </div>
               <div className="space-y-2">
-                <Label>Base Yearly Price ($)</Label>
+                <Label>Manual Cost ($)</Label>
                 <Input
                   type="number"
                   placeholder="0.00"
-                  value={planFormData.price_yearly}
-                  onChange={(e) => setPlanFormData({ ...planFormData, price_yearly: e.target.value })}
-                  data-testid="plan-price-yearly-input"
+                  value={planFormData.cost}
+                  onChange={(e) => setPlanFormData({ ...planFormData, cost: e.target.value })}
+                  data-testid="plan-cost-input"
                 />
               </div>
             </div>
@@ -676,7 +649,7 @@ export default function PlansPage() {
           <DialogHeader>
             <DialogTitle>Add Tool</DialogTitle>
             <DialogDescription>
-              Add a new selectable tool with its own pricing
+              Add a selectable tool for this plan
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -697,28 +670,6 @@ export default function PlansPage() {
                 onChange={(e) => setToolFormData({ ...toolFormData, description: e.target.value })}
                 rows={2}
               />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Monthly Price ($)</Label>
-                <Input
-                  type="number"
-                  placeholder="49.00"
-                  value={toolFormData.price_monthly}
-                  onChange={(e) => setToolFormData({ ...toolFormData, price_monthly: e.target.value })}
-                  data-testid="tool-price-monthly-input"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Yearly Price ($)</Label>
-                <Input
-                  type="number"
-                  placeholder="490.00"
-                  value={toolFormData.price_yearly}
-                  onChange={(e) => setToolFormData({ ...toolFormData, price_yearly: e.target.value })}
-                  data-testid="tool-price-yearly-input"
-                />
-              </div>
             </div>
             <div className="space-y-2">
               <Label>Display Order</Label>
@@ -748,7 +699,7 @@ export default function PlansPage() {
           <DialogHeader>
             <DialogTitle>Edit Tool</DialogTitle>
             <DialogDescription>
-              Update the tool details and pricing
+              Update the tool details
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -768,26 +719,6 @@ export default function PlansPage() {
                 onChange={(e) => setToolFormData({ ...toolFormData, description: e.target.value })}
                 rows={2}
               />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Monthly Price ($)</Label>
-                <Input
-                  type="number"
-                  placeholder="49.00"
-                  value={toolFormData.price_monthly}
-                  onChange={(e) => setToolFormData({ ...toolFormData, price_monthly: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Yearly Price ($)</Label>
-                <Input
-                  type="number"
-                  placeholder="490.00"
-                  value={toolFormData.price_yearly}
-                  onChange={(e) => setToolFormData({ ...toolFormData, price_yearly: e.target.value })}
-                />
-              </div>
             </div>
             <div className="space-y-2">
               <Label>Display Order</Label>

@@ -1,6 +1,7 @@
 import axios from "axios";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const ADMIN_BASE_PATH = process.env.PUBLIC_URL || "/admin";
 
 export const api = axios.create({
   baseURL: `${BACKEND_URL}/api`,
@@ -24,7 +25,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem("token");
-      window.location.href = "/login";
+      window.location.href = `${ADMIN_BASE_PATH}/login`;
     }
     return Promise.reject(error);
   }
@@ -40,6 +41,9 @@ export const organizationsApi = {
   getAll: (params) => api.get("/organizations", { params }),
   getPending: () => api.get("/organizations/pending"),
   getById: (id) => api.get(`/organizations/${id}`),
+  getDetails: (id) => api.get(`/organizations/${id}/details`),
+  getBusinessUnits: (id, params) => api.get(`/organizations/${id}/business-units`, { params }),
+  getTeams: (id, params) => api.get(`/organizations/${id}/teams`, { params }),
   create: (data) => api.post("/organizations", data),
   update: (id, data) => api.put(`/organizations/${id}`, data),
   approve: (id) => api.post(`/organizations/${id}/approve`),
@@ -118,6 +122,12 @@ export const upgradeRequestsApi = {
   reject: (id, reason) => api.post(`/upgrade-requests/${id}/reject`, null, { params: { reason } }),
 };
 
+export const userRequestsApi = {
+  getAll: (params) => api.get("/user-requests", { params }),
+  approve: (id, params) => api.post(`/user-requests/${id}/approve`, null, { params }),
+  reject: (id, reason) => api.post(`/user-requests/${id}/reject`, null, { params: { reason } }),
+};
+
 // ==================== ORG ADMIN APIs ====================
 
 export const myOrganizationApi = {
@@ -142,13 +152,29 @@ export const myOrganizationApi = {
   
   // Roles in my org
   getRoles: () => api.get("/my-organization/roles"),
+
+  // Business units in my org
+  getBusinessUnits: (params) => api.get("/my-organization/business-units", { params }),
+  getBusinessUnitById: (id) => api.get(`/my-organization/business-units/${id}`),
+  createBusinessUnit: (data) => api.post("/my-organization/business-units", data),
+  updateBusinessUnit: (id, data) => api.put(`/my-organization/business-units/${id}`, data),
+
+  // Projects/teams in my org
+  getProjects: (params) => api.get("/my-organization/projects", { params }),
+  getProjectById: (id) => api.get(`/my-organization/projects/${id}`),
+  getProjectTeamMembers: () => api.get("/my-organization/project-team-members"),
+  getBusinessUnitProjects: (businessUnitId) => api.get(`/my-organization/business-units/${businessUnitId}/projects`),
+  createProject: (data) => api.post("/my-organization/projects", data),
+  updateProject: (id, data) => api.put(`/my-organization/projects/${id}`, data),
+  getProjectTeam: (projectId) => api.get(`/my-organization/projects/${projectId}/team`),
+  inviteProjectTeam: (projectId, data) => api.post(`/my-organization/projects/${projectId}/team/invite`, data),
   
   // Billing for my org
   getBilling: () => api.get("/my-organization/billing"),
   
   // User requests
   getUserRequests: () => api.get("/my-organization/user-requests"),
-  approveUserRequest: (requestId, roleId) => api.post(`/my-organization/user-requests/${requestId}/approve`, null, { params: { role_id: roleId } }),
+  approveUserRequest: (requestId, params) => api.post(`/my-organization/user-requests/${requestId}/approve`, null, { params }),
   rejectUserRequest: (requestId, reason) => api.post(`/my-organization/user-requests/${requestId}/reject`, null, { params: { reason } }),
   
   // Upgrade requests

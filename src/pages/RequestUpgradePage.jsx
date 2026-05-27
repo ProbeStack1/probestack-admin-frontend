@@ -18,22 +18,20 @@ import { TrendingUp, ArrowLeft, Package, Check } from "lucide-react";
 export default function RequestUpgradePage() {
   const navigate = useNavigate();
   const [plans, setPlans] = useState([]);
-  const [currentSubscription, setCurrentSubscription] = useState(null);
+  const [currentSubscriptions, setCurrentSubscriptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState("");
   const [selectedTools, setSelectedTools] = useState([]);
   const [reason, setReason] = useState("");
 
-  const availableTools = [
-    { id: "api_platform", label: "API Platform" },
-    { id: "ai_agentic", label: "AI Agentic" },
-    { id: "migration_tool", label: "Migration Tool" },
-  ];
-
   useEffect(() => {
     fetchData();
   }, []);
+
+  const selectedPlanDetails = plans.find((plan) => plan.id === selectedPlan);
+  const selectedPlanTools = selectedPlanDetails?.plan_tools || [];
+  const existingPlanSubscription = currentSubscriptions.find((sub) => sub.plan_id === selectedPlan && sub.status === "active");
 
   const fetchData = async () => {
     try {
@@ -42,8 +40,7 @@ export default function RequestUpgradePage() {
         myOrganizationApi.getSubscription(),
       ]);
       setPlans(plansRes.data);
-      const activeSub = subsRes.data.find((s) => s.status === "active");
-      setCurrentSubscription(activeSub);
+      setCurrentSubscriptions(subsRes.data.filter((s) => s.status === "active"));
     } catch (error) {
       toast.error("Failed to load data");
     } finally {
@@ -60,7 +57,7 @@ export default function RequestUpgradePage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedPlan) { toast.error("Please select a plan"); return; }
-    if (selectedTools.length === 0) { toast.error("Please select at least one tool"); return; }
+    if (selectedPlanTools.length > 0 && selectedTools.length === 0) { toast.error("Please select at least one tool"); return; }
 
     setSubmitting(true);
     try {
@@ -69,10 +66,10 @@ export default function RequestUpgradePage() {
         requested_tools: selectedTools,
         reason: reason || null,
       });
-      toast.success("Upgrade request submitted successfully");
+      toast.success(existingPlanSubscription ? "Plan replacement request submitted" : "New plan request submitted");
       navigate("/my-subscription");
     } catch (error) {
-      toast.error("Failed to submit upgrade request");
+      toast.error(error.response?.data?.detail || "Failed to submit upgrade request");
     } finally {
       setSubmitting(false);
     }
@@ -92,15 +89,20 @@ export default function RequestUpgradePage() {
         </div>
       </div>
 
-      {currentSubscription && (
+      {currentSubscriptions.length > 0 && (
         <Card className="border-border/50 bg-muted/30">
           <CardContent className="p-6">
-            <div className="flex items-center gap-4">
+            <div className="flex items-start gap-4">
               <div className="p-3 rounded-xl bg-primary/10"><Package className="h-6 w-6 text-primary" /></div>
               <div>
-                <p className="text-sm text-muted-foreground">Current Plan</p>
-                <p className="text-lg font-bold">{currentSubscription.plan_name}</p>
-                <p className="text-sm text-muted-foreground">${currentSubscription.amount}/mo</p>
+                <p className="text-sm text-muted-foreground">Current Active Plans</p>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {currentSubscriptions.map((subscription) => (
+                    <span key={subscription.id} className="rounded-md border px-2 py-1 text-sm font-medium">
+                      {subscription.plan_name} (${subscription.amount}/mo)
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
           </CardContent>
@@ -115,31 +117,54 @@ export default function RequestUpgradePage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label>Select New Plan</Label>
-              <Select value={selectedPlan} onValueChange={setSelectedPlan}>
+              <Label>Select Plan</Label>
+              <Select
+                value={selectedPlan}
+                onValueChange={(value) => {
+                  setSelectedPlan(value);
+                  setSelectedTools([]);
+                }}
+              >
                 <SelectTrigger><SelectValue placeholder="Choose a plan" /></SelectTrigger>
                 <SelectContent>
                   {plans.map((plan) => (
-                    <SelectItem key={plan.id} value={plan.id}>{plan.name} - ${plan.price_monthly}/mo ({plan.tool})</SelectItem>
+                    <SelectItem key={plan.id} value={plan.id}>
+                      {plan.name} - ${plan.cost ?? plan.price_monthly ?? 0} ({plan.api_limit || 0} APIs, {plan.tool})
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
+            {selectedPlan && (
+              <div className="rounded-md border bg-muted/30 p-4 text-sm">
+                {existingPlanSubscription
+                  ? "This request will replace the existing active subscription for this plan."
+                  : "This request will add a new active plan subscription for your organization."}
+              </div>
+            )}
+
             <div className="space-y-3">
               <Label>Select Tools</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {availableTools.map((tool) => {
-                  const isSelected = selectedTools.includes(tool.id);
+              {selectedPlanTools.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {selectedPlanTools.map((tool) => {
+                  const toolValue = tool.name || tool.id;
+                  const isSelected = selectedTools.includes(toolValue);
                   return (
-                    <button key={tool.id} type="button" onClick={() => handleToolToggle(tool.id)}
+                    <button key={tool.id} type="button" onClick={() => handleToolToggle(toolValue)}
                       className={`flex items-center justify-between p-4 rounded-lg border text-left transition-colors ${isSelected ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"}`}>
-                      <span className="font-medium">{tool.label}</span>
+                      <span className="font-medium">{tool.name}</span>
                       {isSelected && <div className="h-5 w-5 rounded-full bg-primary flex items-center justify-center"><Check className="h-3 w-3 text-primary-foreground" /></div>}
                     </button>
                   );
-                })}
-              </div>
+                  })}
+                </div>
+              ) : (
+                <p className="rounded-md border bg-muted/30 p-4 text-sm text-muted-foreground">
+                  Select a plan to see available tools.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -149,7 +174,9 @@ export default function RequestUpgradePage() {
 
             <div className="flex justify-end gap-3">
               <Button type="button" variant="outline" onClick={() => navigate(-1)}>Cancel</Button>
-              <Button type="submit" disabled={submitting}>{submitting ? "Submitting..." : "Submit Request"}</Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? "Submitting..." : existingPlanSubscription ? "Request Replacement" : "Request New Plan"}
+              </Button>
             </div>
           </form>
         </CardContent>
