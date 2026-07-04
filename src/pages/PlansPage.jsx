@@ -46,6 +46,7 @@ import {
 
 const TOOLS = [
   { id: "api_platform", name: "API Platform", icon: Package, color: "text-blue-500", bgColor: "bg-blue-500/10" },
+  { id: "forge_catalog", name: "ForgeCatalog - API & MCP Design", icon: Package, color: "text-blue-500", bgColor: "bg-blue-500/10" },
   { id: "ai_agentic", name: "Agentic AI", icon: Zap, color: "text-purple-500", bgColor: "bg-purple-500/10" },
   { id: "migration_tool", name: "Migration Tool", icon: ArrowLeftRight, color: "text-amber-500", bgColor: "bg-amber-500/10" },
 ];
