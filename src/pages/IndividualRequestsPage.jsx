@@ -68,13 +68,6 @@ const legacyToolLabels = {
   migration_tool: "Migration Tool",
 };
 
-// Product type labels
-const productLabels = {
-  api_platform: "API Platform",
-  ai_agentic: "AI Agentic",
-  migration_tool: "Migration Tool",
-};
-
 export default function IndividualRequestsPage() {
   const { token } = useAuth();
   const [requests, setRequests] = useState([]);
@@ -174,7 +167,8 @@ export default function IndividualRequestsPage() {
 
   const getPlanName = (planId) => {
     const plan = plans.find((p) => p.id === planId);
-    return plan ? `${plan.name} (${productLabels[plan.tool] || plan.tool})` : planId;
+    const productLabel = plan?.product_name || plan?.product_key;
+    return plan ? `${plan.name}${productLabel ? ` (${productLabel})` : ""}` : planId;
   };
 
   const formatTools = (tools) => {

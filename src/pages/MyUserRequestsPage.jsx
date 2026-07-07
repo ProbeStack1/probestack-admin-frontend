@@ -71,7 +71,7 @@ export default function MyUserRequestsPage() {
 
   const handleApprove = async () => {
     if (!approveDialog.request || !selectedRole || !selectedBusinessUnit || !selectedTeam) {
-      toast.error("Please select role, BU, and team");
+      toast.error("Please select role, Business unit, and Project");
       return;
     }
     try {
@@ -181,7 +181,7 @@ export default function MyUserRequestsPage() {
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>BU / Team</TableHead>
+                    <TableHead>Business unit / Project</TableHead>
                     <TableHead>Processed</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -242,7 +242,7 @@ export default function MyUserRequestsPage() {
                   setSelectedTeam("");
                 }}
               >
-                <SelectTrigger><SelectValue placeholder="Select a BU" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Select a Business unit" /></SelectTrigger>
                 <SelectContent>
                   {businessUnits.map((businessUnit) => (
                     <SelectItem key={businessUnit.id} value={businessUnit.id}>{businessUnit.name}</SelectItem>
@@ -251,9 +251,9 @@ export default function MyUserRequestsPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Team</Label>
+              <Label>Project</Label>
               <Select value={selectedTeam} onValueChange={setSelectedTeam} disabled={!selectedBusinessUnit}>
-                <SelectTrigger><SelectValue placeholder="Select a team" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Select a Project" /></SelectTrigger>
                 <SelectContent>
                   {filteredTeams.map((team) => (
                     <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
@@ -262,7 +262,7 @@ export default function MyUserRequestsPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Team Role</Label>
+              <Label>Project Role</Label>
               <Select value={selectedTeamRole} onValueChange={setSelectedTeamRole}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>

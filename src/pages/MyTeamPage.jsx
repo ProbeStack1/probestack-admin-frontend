@@ -61,7 +61,7 @@ export default function MyTeamPage() {
       const response = await myOrganizationApi.getTeamMembers();
       setTeamMembers(response.data);
     } catch (error) {
-      toast.error("Failed to load team members");
+      toast.error("Failed to load organization admins");
     } finally {
       setLoading(false);
     }
@@ -73,13 +73,13 @@ export default function MyTeamPage() {
     setProcessing(true);
     try {
       await myOrganizationApi.createTeamMember(newMember);
-      toast.success("Team member account created successfully");
+      toast.success("Organization admin account created successfully");
       setCreateDialog(false);
       setNewMember({ email: "", password: "", name: "" });
       fetchTeamMembers();
     } catch (error) {
       const detail = error.response?.data?.detail;
-      const message = typeof detail === 'string' ? detail : 'Failed to create team member';
+      const message = typeof detail === 'string' ? detail : 'Failed to create organization admin';
       toast.error(message);
     } finally {
       setProcessing(false);
@@ -102,11 +102,11 @@ export default function MyTeamPage() {
     setProcessing(true);
     try {
       await myOrganizationApi.deleteTeamMember(deleteDialog.member.id);
-      toast.success("Team member removed successfully");
+      toast.success("Organization admin removed successfully");
       fetchTeamMembers();
     } catch (error) {
       const detail = error.response?.data?.detail;
-      const message = typeof detail === 'string' ? detail : 'Failed to remove team member';
+      const message = typeof detail === 'string' ? detail : 'Failed to remove organization admin';
       toast.error(message);
     } finally {
       setProcessing(false);
@@ -124,14 +124,14 @@ export default function MyTeamPage() {
     <div className="space-y-6" data-testid="my-team-page">
       <div className="flex flex-col sm:flex-row justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">My Team</h1>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Organization Admins</h1>
           <p className="text-muted-foreground mt-1">
             Manage admin accounts for {admin?.organization_name}
           </p>
         </div>
         <Button onClick={() => setCreateDialog(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          Add Team Member
+          Add Organization Admin
         </Button>
       </div>
 
@@ -141,10 +141,10 @@ export default function MyTeamPage() {
           <div className="flex items-start gap-3">
             <UserCog className="h-5 w-5 text-blue-500 mt-0.5" />
             <div>
-              <p className="text-sm font-medium">Team Admin Accounts</p>
+              <p className="text-sm font-medium">Organization Admin Accounts</p>
               <p className="text-sm text-muted-foreground">
-                Create additional admin accounts to share dashboard access with your team. 
-                All team members will have the same permissions as you for managing your organization.
+                Create additional admin accounts to share dashboard access for your organization.
+                All organization admins will have the same permissions as you for managing your organization.
               </p>
             </div>
           </div>
@@ -155,19 +155,19 @@ export default function MyTeamPage() {
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Search team members..."
+          placeholder="Search organization admins..."
           className="pl-9"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
 
-      {/* Team Members Table */}
+      {/* Organization Admins Table */}
       <Card className="border-border/50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Team Members ({filteredMembers.length})
+            Organization Admins ({filteredMembers.length})
           </CardTitle>
           <CardDescription>Admin accounts with access to your organization dashboard</CardDescription>
         </CardHeader>
@@ -178,7 +178,7 @@ export default function MyTeamPage() {
             </div>
           ) : filteredMembers.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              {search ? "No team members match your search" : "No team members yet. Add your first team member!"}
+              {search ? "No organization admins match your search" : "No organization admins yet. Add your first organization admin!"}
             </div>
           ) : (
             <div className="rounded-md border">
@@ -252,7 +252,7 @@ export default function MyTeamPage() {
       <Dialog open={createDialog} onOpenChange={setCreateDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Team Member</DialogTitle>
+            <DialogTitle>Add Organization Admin</DialogTitle>
             <DialogDescription>
               Create a new admin account for your organization. They will have the same access as you.
             </DialogDescription>
@@ -305,7 +305,7 @@ export default function MyTeamPage() {
       <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ open, member: null })}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Team Member</AlertDialogTitle>
+            <AlertDialogTitle>Remove Organization Admin</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to remove <strong>{deleteDialog.member?.name}</strong>'s account?
               They will no longer be able to access the dashboard.

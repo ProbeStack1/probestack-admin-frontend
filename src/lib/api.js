@@ -65,6 +65,10 @@ export const plansApi = {
   create: (data) => api.post("/plans", data),
   update: (id, data) => api.put(`/plans/${id}`, data),
   delete: (id) => api.delete(`/plans/${id}`),
+  getProducts: (params) => api.get("/products", { params }),
+  createProduct: (data) => api.post("/products", data),
+  updateProduct: (id, data) => api.put(`/products/${id}`, data),
+  deleteProduct: (id) => api.delete(`/products/${id}`),
   // Plan Tools APIs
   getTools: (planId) => api.get(`/plans/${planId}/tools`),
   createTool: (planId, data) => api.post(`/plans/${planId}/tools`, data),
@@ -109,6 +113,10 @@ export const seedApi = {
   seed: () => api.post("/seed"),
 };
 
+export const publicUsersApi = {
+  issueContextToken: (data) => api.post("/public/users/context-token", data),
+};
+
 export const adminsApi = {
   getAll: () => api.get("/admins"),
   create: (data) => api.post("/admins", data),
@@ -144,7 +152,7 @@ export const myOrganizationApi = {
   getUsers: () => api.get("/my-organization/users"),
   removeUser: (userId) => api.post(`/my-organization/users/${userId}/remove`),
   
-  // Team members (org admins for this org)
+  // Organization admins for this org
   getTeamMembers: () => api.get("/my-organization/team"),
   createTeamMember: (data) => api.post("/my-organization/team", data),
   toggleTeamMemberStatus: (id) => api.put(`/my-organization/team/${id}/toggle-status`),

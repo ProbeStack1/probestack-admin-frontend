@@ -73,7 +73,7 @@ export default function MyDashboardPage() {
       action: () => navigate("/my-subscription"),
     },
     {
-      title: "Business Units",
+      title: "Business units",
       value: stats?.total_business_units || 0,
       icon: Building2,
       color: "text-cyan-500",
@@ -81,7 +81,7 @@ export default function MyDashboardPage() {
       action: () => navigate("/onboard-bu"),
     },
     {
-      title: "Teams",
+      title: "Projects",
       value: stats?.total_projects || 0,
       icon: Package,
       color: "text-orange-500",
@@ -237,11 +237,11 @@ export default function MyDashboardPage() {
             </Button>
             <Button variant="outline" onClick={() => navigate("/onboard-bu")}>
               <Building2 className="mr-2 h-4 w-4" />
-              Onboard BU
+              Onboard Business unit
             </Button>
             <Button variant="outline" onClick={() => navigate("/onboard-project")}>
               <Package className="mr-2 h-4 w-4" />
-              Onboard Team
+              Onboard Project
             </Button>
             <Button variant="outline" onClick={() => navigate("/my-billing")}>
               <Receipt className="mr-2 h-4 w-4" />

@@ -62,9 +62,9 @@ const superAdminNavItems = [
 const orgAdminNavItems = [
   { path: "/", icon: LayoutDashboard, label: "Dashboard" },
   { path: "/my-organization", icon: Building2, label: "Organization" },
-  { path: "/my-team", icon: UsersRound, label: "My Team" },
-  { path: "/onboard-bu", icon: Building2, label: "Onboard BU" },
-  { path: "/onboard-project", icon: Package, label: "Onboard Team" },
+  { path: "/my-team", icon: UsersRound, label: "Organization Admins" },
+  { path: "/onboard-bu", icon: Building2, label: "Onboard Business unit" },
+  { path: "/onboard-project", icon: Package, label: "Onboard Project" },
   { path: "/my-users", icon: Users, label: "My Users" },
   { path: "/my-user-requests", icon: UserPlus, label: "User Requests" },
   { path: "/my-subscription", icon: CreditCard, label: "Subscription" },

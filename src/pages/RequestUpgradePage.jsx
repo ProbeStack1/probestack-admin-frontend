@@ -129,7 +129,7 @@ export default function RequestUpgradePage() {
                 <SelectContent>
                   {plans.map((plan) => (
                     <SelectItem key={plan.id} value={plan.id}>
-                      {plan.name} - ${plan.cost ?? plan.price_monthly ?? 0} ({plan.api_limit || 0} APIs, {plan.tool})
+                      {plan.product_name ? `${plan.product_name} - ` : ""}{plan.name} - ${plan.cost ?? plan.price_monthly ?? 0} ({plan.api_limit || 0} APIs)
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -145,7 +145,7 @@ export default function RequestUpgradePage() {
             )}
 
             <div className="space-y-3">
-              <Label>Select Tools</Label>
+              <Label>Select Features</Label>
               {selectedPlanTools.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {selectedPlanTools.map((tool) => {
@@ -162,7 +162,7 @@ export default function RequestUpgradePage() {
                 </div>
               ) : (
                 <p className="rounded-md border bg-muted/30 p-4 text-sm text-muted-foreground">
-                  Select a plan to see available tools.
+                  Select a plan to see available features.
                 </p>
               )}
             </div>

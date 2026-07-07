@@ -184,8 +184,9 @@ export default function SubscriptionsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Organization</TableHead>
+                  <TableHead>Product</TableHead>
                   <TableHead>Plan</TableHead>
-                  <TableHead>Tools</TableHead>
+                  <TableHead>Features</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Period</TableHead>
                   <TableHead>Status</TableHead>
@@ -202,6 +203,9 @@ export default function SubscriptionsPage() {
                         </div>
                         <p className="font-medium">{sub.organization_name}</p>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{sub.product_name || "-"}</Badge>
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary">{sub.plan_name}</Badge>
@@ -320,7 +324,7 @@ export default function SubscriptionsPage() {
               </div>
 
               <div className="pt-4 border-t">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Tools Included</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Features Included</p>
                 <div className="flex flex-wrap gap-2">
                   {selectedSub.tools.map((tool) => (
                     <Badge key={tool} variant="outline">

@@ -75,9 +75,9 @@ export default function MySubscriptionPage() {
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Package className="h-4 w-4" />
-                        <span className="text-sm">Plan</span>
+                        <span className="text-sm">Product / Plan</span>
                       </div>
-                      <p className="text-xl font-bold">{activeSub.plan_name}</p>
+                      <p className="text-xl font-bold">{activeSub.product_name ? `${activeSub.product_name} - ` : ""}{activeSub.plan_name}</p>
                     </div>
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-muted-foreground">
@@ -106,7 +106,7 @@ export default function MySubscriptionPage() {
                     </div>
                   </div>
                   <div className="mt-6 pt-6 border-t">
-                    <p className="text-sm text-muted-foreground mb-2">Tools Included</p>
+                    <p className="text-sm text-muted-foreground mb-2">Features Included</p>
                     <div className="flex flex-wrap gap-2">
                       {(activeSub.tools || []).map((tool) => (
                         <Badge key={`${activeSub.id}-${tool}`} variant="secondary">

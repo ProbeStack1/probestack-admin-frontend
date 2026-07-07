@@ -185,7 +185,7 @@ export default function OrganizationsPage() {
         team_members: response.data.team_members || [],
       });
     } catch (error) {
-      toast.error("Failed to load organization BUs and teams");
+      toast.error("Failed to load organization Business units and Projects");
     } finally {
       setLoadingStructure(false);
     }
@@ -625,9 +625,9 @@ export default function OrganizationsPage() {
               <div className="pt-4 border-t space-y-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Business Units and Teams</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Business units and Projects</p>
                     <p className="text-sm text-muted-foreground">
-                      {orgStructure.business_units.length} BU(s), {orgStructure.teams.length} team(s), {orgStructure.team_members.length} member(s)
+                      {orgStructure.business_units.length} Business unit(s), {orgStructure.teams.length} project(s), {orgStructure.team_members.length} member(s)
                     </p>
                   </div>
                 </div>
@@ -640,7 +640,7 @@ export default function OrganizationsPage() {
                   <div className="rounded-lg border border-dashed p-6 text-center">
                     <Layers3 className="mx-auto h-8 w-8 text-muted-foreground" />
                     <p className="mt-2 font-medium">No business units onboarded</p>
-                    <p className="text-sm text-muted-foreground">BUs and teams will appear here once this organization onboards them.</p>
+                    <p className="text-sm text-muted-foreground">Business units and Projects will appear here once this organization onboards them.</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -664,13 +664,13 @@ export default function OrganizationsPage() {
                             </div>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                               <Users className="h-4 w-4" />
-                              {buTeams.length} team(s)
+                              {buTeams.length} project(s)
                             </div>
                           </div>
 
                           <div className="mt-4 space-y-2">
                             {buTeams.length === 0 ? (
-                              <p className="rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground">No teams onboarded for this BU.</p>
+                              <p className="rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground">No projects onboarded for this Business unit.</p>
                             ) : (
                               buTeams.map((team) => renderTeamSummary(team))
                             )}
@@ -682,7 +682,7 @@ export default function OrganizationsPage() {
                       <div className="rounded-lg border border-dashed p-4">
                         <div className="flex items-center gap-2">
                           <Layers3 className="h-4 w-4 text-muted-foreground" />
-                          <h4 className="font-semibold">Teams Without BU</h4>
+                          <h4 className="font-semibold">Projects Without Business unit</h4>
                         </div>
                         <div className="mt-4 space-y-2">
                           {getUnassignedTeams().map((team) => renderTeamSummary(team))}

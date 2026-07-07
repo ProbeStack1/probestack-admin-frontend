@@ -41,20 +41,35 @@ import { plansApi } from "../lib/api";
 import { toast } from "sonner";
 import { 
   Plus, Edit, Trash2, Check, Package, Zap, ArrowLeftRight, 
-  Settings2, GripVertical, RefreshCw
+  Settings2, GripVertical, RefreshCw, Boxes
 } from "lucide-react";
 
-const TOOLS = [
-  { id: "api_platform", name: "API Platform", icon: Package, color: "text-blue-500", bgColor: "bg-blue-500/10" },
-  { id: "forge_catalog", name: "ForgeCatalog - API & MCP Design", icon: Package, color: "text-blue-500", bgColor: "bg-blue-500/10" },
-  { id: "ai_agentic", name: "Agentic AI", icon: Zap, color: "text-purple-500", bgColor: "bg-purple-500/10" },
-  { id: "migration_tool", name: "Migration Tool", icon: ArrowLeftRight, color: "text-amber-500", bgColor: "bg-amber-500/10" },
-];
+const PRODUCT_VISUALS = {
+  forgeshift: { icon: ArrowLeftRight, color: "text-amber-500", bgColor: "bg-amber-500/10" },
+  forgestudio: { icon: Package, color: "text-blue-500", bgColor: "bg-blue-500/10" },
+  forgeq: { icon: Boxes, color: "text-cyan-500", bgColor: "bg-cyan-500/10" },
+  forgesphere: { icon: Package, color: "text-emerald-500", bgColor: "bg-emerald-500/10" },
+  forgeai: { icon: Zap, color: "text-violet-500", bgColor: "bg-violet-500/10" },
+  agentic_ai: { icon: Zap, color: "text-fuchsia-500", bgColor: "bg-fuchsia-500/10" },
+};
+
+const getProductVisual = (product) => PRODUCT_VISUALS[product?.key] || {
+  icon: Package,
+  color: "text-emerald-500",
+  bgColor: "bg-emerald-500/10",
+};
 
 export default function PlansPage() {
+  const [products, setProducts] = useState([]);
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedTool, setSelectedTool] = useState("api_platform");
+  const [selectedProductId, setSelectedProductId] = useState("");
+  
+  // Product dialogs
+  const [showCreateProductDialog, setShowCreateProductDialog] = useState(false);
+  const [showEditProductDialog, setShowEditProductDialog] = useState(false);
+  const [showDeleteProductDialog, setShowDeleteProductDialog] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
   
   // Plan dialogs
   const [showCreatePlanDialog, setShowCreatePlanDialog] = useState(false);
@@ -72,11 +87,22 @@ export default function PlansPage() {
   // Form data
   const [planFormData, setPlanFormData] = useState({
     name: "",
-    tool: "api_platform",
+    product_id: "",
     description: "",
     features: "",
     api_limit: "",
     cost: "",
+    price_label: "",
+    billing_period: "",
+    is_popular: false,
+  });
+
+  const [productFormData, setProductFormData] = useState({
+    name: "",
+    key: "",
+    description: "",
+    display_order: "",
+    is_active: true,
   });
   
   const [toolFormData, setToolFormData] = useState({
@@ -85,29 +111,108 @@ export default function PlansPage() {
     display_order: 0,
   });
 
-  const fetchPlans = useCallback(async () => {
+  const fetchProducts = useCallback(async () => {
     try {
-      const response = await plansApi.getAll({ tool: selectedTool });
-      setPlans(response.data);
+      const response = await plansApi.getProducts();
+      const productList = response.data || [];
+      setProducts(productList);
+      if (!selectedProductId && productList.length > 0) {
+        setSelectedProductId(productList[0].id);
+      }
     } catch (error) {
-      toast.error("Failed to load plans");
+      toast.error("Failed to load products");
     } finally {
       setLoading(false);
     }
-  }, [selectedTool]);
+  }, [selectedProductId]);
+
+  const fetchPlans = useCallback(async () => {
+    if (!selectedProductId) {
+      setPlans([]);
+      return;
+    }
+    try {
+      const response = await plansApi.getAll({ product_id: selectedProductId });
+      setPlans(response.data);
+    } catch (error) {
+      toast.error("Failed to load plans");
+    }
+  }, [selectedProductId]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   useEffect(() => {
     fetchPlans();
   }, [fetchPlans]);
+
+  const refreshProductsAndPlans = async () => {
+    await fetchProducts();
+    await fetchPlans();
+  };
+
+  const handleCreateProduct = async () => {
+    try {
+      const data = {
+        ...productFormData,
+        key: productFormData.key.trim() || undefined,
+        display_order: parseInt(productFormData.display_order) || 0,
+      };
+      const response = await plansApi.createProduct(data);
+      toast.success("Product created successfully");
+      setShowCreateProductDialog(false);
+      resetProductForm();
+      await fetchProducts();
+      setSelectedProductId(response.data.id);
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to create product"));
+    }
+  };
+
+  const handleUpdateProduct = async () => {
+    if (!selectedProduct) return;
+    try {
+      const data = {
+        ...productFormData,
+        key: productFormData.key.trim() || undefined,
+        display_order: parseInt(productFormData.display_order) || 0,
+      };
+      await plansApi.updateProduct(selectedProduct.id, data);
+      toast.success("Product updated successfully");
+      setShowEditProductDialog(false);
+      resetProductForm();
+      refreshProductsAndPlans();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to update product"));
+    }
+  };
+
+  const handleDeleteProduct = async () => {
+    if (!selectedProduct) return;
+    try {
+      await plansApi.deleteProduct(selectedProduct.id);
+      toast.success("Product updated successfully");
+      setShowDeleteProductDialog(false);
+      resetProductForm();
+      refreshProductsAndPlans();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to update product"));
+    }
+  };
 
   // Plan handlers
   const handleCreatePlan = async () => {
     try {
       const data = {
         ...planFormData,
+        product_id: selectedProductId,
         features: planFormData.features.split("\n").filter((f) => f.trim()),
         api_limit: parseInt(planFormData.api_limit) || 0,
         cost: parseFloat(planFormData.cost) || 0,
+        price_label: planFormData.price_label,
+        billing_period: planFormData.billing_period || null,
+        is_popular: planFormData.is_popular,
       };
       await plansApi.create(data);
       toast.success("Plan created successfully");
@@ -127,6 +232,9 @@ export default function PlansPage() {
         features: planFormData.features.split("\n").filter((f) => f.trim()),
         api_limit: parseInt(planFormData.api_limit) || 0,
         cost: parseFloat(planFormData.cost) || 0,
+        price_label: planFormData.price_label,
+        billing_period: planFormData.billing_period || null,
+        is_popular: planFormData.is_popular,
       };
       await plansApi.update(selectedPlan.id, data);
       toast.success("Plan updated successfully");
@@ -160,12 +268,12 @@ export default function PlansPage() {
         display_order: parseInt(toolFormData.display_order) || 0,
       };
       await plansApi.createTool(managingPlanId, data);
-      toast.success("Tool added successfully");
+      toast.success("Feature added successfully");
       fetchPlans();
       setShowAddToolDialog(false);
       resetToolForm();
     } catch (error) {
-      toast.error(getErrorMessage(error, "Failed to add tool"));
+      toast.error(getErrorMessage(error, "Failed to add feature"));
     }
   };
 
@@ -177,12 +285,12 @@ export default function PlansPage() {
         display_order: parseInt(toolFormData.display_order) || 0,
       };
       await plansApi.updateTool(managingPlanId, selectedPlanTool.id, data);
-      toast.success("Tool updated successfully");
+      toast.success("Feature updated successfully");
       fetchPlans();
       setShowEditToolDialog(false);
       resetToolForm();
     } catch (error) {
-      toast.error(getErrorMessage(error, "Failed to update tool"));
+      toast.error(getErrorMessage(error, "Failed to update feature"));
     }
   };
 
@@ -190,22 +298,22 @@ export default function PlansPage() {
     if (!managingPlanId || !selectedPlanTool) return;
     try {
       await plansApi.deleteTool(managingPlanId, selectedPlanTool.id);
-      toast.success("Tool deleted successfully");
+      toast.success("Feature deleted successfully");
       fetchPlans();
       setShowDeleteToolDialog(false);
       setSelectedPlanTool(null);
     } catch (error) {
-      toast.error("Failed to delete tool");
+      toast.error("Failed to delete feature");
     }
   };
 
   const handleToggleToolStatus = async (planId, tool) => {
     try {
       await plansApi.updateTool(planId, tool.id, { is_active: !tool.is_active });
-      toast.success(`Tool ${tool.is_active ? "disabled" : "enabled"}`);
+      toast.success(`Feature ${tool.is_active ? "disabled" : "enabled"}`);
       fetchPlans();
     } catch (error) {
-      toast.error("Failed to update tool status");
+      toast.error("Failed to update feature status");
     }
   };
 
@@ -214,19 +322,34 @@ export default function PlansPage() {
     setSelectedPlan(plan);
     setPlanFormData({
       name: plan.name,
-      tool: plan.tool,
+      product_id: plan.product_id || selectedProductId,
       description: plan.description,
       features: plan.features?.join("\n") || "",
       api_limit: (plan.api_limit || 0).toString(),
       cost: (plan.cost ?? plan.price_monthly ?? 0).toString(),
+      price_label: plan.price_label || plan.price || "",
+      billing_period: plan.billing_period || plan.period || "",
+      is_popular: !!plan.is_popular || !!plan.popular,
     });
     setShowEditPlanDialog(true);
   };
 
   const openCreatePlanDialog = () => {
     resetPlanForm();
-    setPlanFormData((prev) => ({ ...prev, tool: selectedTool }));
+    setPlanFormData((prev) => ({ ...prev, product_id: selectedProductId }));
     setShowCreatePlanDialog(true);
+  };
+
+  const openEditProductDialog = (product) => {
+    setSelectedProduct(product);
+    setProductFormData({
+      name: product.name || "",
+      key: product.key || "",
+      description: product.description || "",
+      display_order: (product.display_order || 0).toString(),
+      is_active: product.is_active !== false,
+    });
+    setShowEditProductDialog(true);
   };
 
   const openAddToolDialog = (planId) => {
@@ -249,11 +372,14 @@ export default function PlansPage() {
   const resetPlanForm = () => {
     setPlanFormData({
       name: "",
-      tool: "api_platform",
+      product_id: selectedProductId,
       description: "",
       features: "",
       api_limit: "",
       cost: "",
+      price_label: "",
+      billing_period: "",
+      is_popular: false,
     });
     setSelectedPlan(null);
   };
@@ -267,7 +393,16 @@ export default function PlansPage() {
     setSelectedPlanTool(null);
   };
 
-  const currentTool = TOOLS.find((t) => t.id === selectedTool);
+  const resetProductForm = () => {
+    setProductFormData({
+      name: "",
+      key: "",
+      description: "",
+      display_order: "",
+      is_active: true,
+    });
+    setSelectedProduct(null);
+  };
 
   if (loading) {
     return (
@@ -283,12 +418,16 @@ export default function PlansPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Product Plans</h1>
-          <p className="text-muted-foreground mt-1">Manage plan limits, manual cost, and selectable tools</p>
+          <p className="text-muted-foreground mt-1">Manage products, subscription plans, features, and costs</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={fetchPlans}>
+          <Button variant="outline" onClick={refreshProductsAndPlans}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
+          </Button>
+          <Button variant="outline" onClick={() => setShowCreateProductDialog(true)} data-testid="create-product-btn">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Product
           </Button>
           <Button onClick={openCreatePlanDialog} data-testid="create-plan-btn">
             <Plus className="mr-2 h-4 w-4" />
@@ -297,28 +436,62 @@ export default function PlansPage() {
         </div>
       </div>
 
-      {/* Tool Tabs */}
-      <Tabs value={selectedTool} onValueChange={setSelectedTool}>
-        <TabsList className="grid w-full grid-cols-3 max-w-lg">
-          {TOOLS.map((tool) => (
-            <TabsTrigger key={tool.id} value={tool.id} className="flex items-center gap-2">
-              <tool.icon className={`h-4 w-4 ${tool.color}`} />
-              <span className="hidden sm:inline">{tool.name}</span>
+      {/* Product Tabs */}
+      {products.length === 0 ? (
+        <Card className="border-border/50">
+          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+              <Package className="h-8 w-8 text-primary" />
+            </div>
+            <h3 className="font-semibold text-lg">No products yet</h3>
+            <p className="text-muted-foreground text-sm mt-1 mb-4">Create a product before adding subscription plans.</p>
+            <Button onClick={() => setShowCreateProductDialog(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Product
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+      <Tabs value={selectedProductId} onValueChange={setSelectedProductId}>
+        <TabsList className="flex h-auto w-full max-w-full flex-wrap justify-start gap-2 bg-transparent p-0">
+          {products.map((product) => {
+            const visual = getProductVisual(product);
+            const ProductIcon = visual.icon;
+            return (
+            <TabsTrigger key={product.id} value={product.id} className="flex items-center gap-2 rounded-md border px-3 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <ProductIcon className={`h-4 w-4 ${visual.color}`} />
+              <span>{product.name}</span>
+              <Badge variant="secondary" className="ml-1">{product.plan_count || 0}</Badge>
             </TabsTrigger>
-          ))}
+            );
+          })}
         </TabsList>
 
-        {TOOLS.map((tool) => (
-          <TabsContent key={tool.id} value={tool.id} className="mt-6">
+        {products.map((product) => {
+          const visual = getProductVisual(product);
+          const ProductIcon = visual.icon;
+          return (
+          <TabsContent key={product.id} value={product.id} className="mt-6">
             <div className="flex items-center gap-3 mb-6">
-              <div className={`p-3 rounded-xl ${tool.bgColor}`}>
-                <tool.icon className={`h-6 w-6 ${tool.color}`} />
+              <div className={`p-3 rounded-xl ${visual.bgColor}`}>
+                <ProductIcon className={`h-6 w-6 ${visual.color}`} />
               </div>
-              <div>
-                <h2 className="text-xl font-semibold">{tool.name}</h2>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-xl font-semibold">{product.name}</h2>
+                  {!product.is_active && <Badge variant="secondary">Inactive</Badge>}
+                </div>
                 <p className="text-sm text-muted-foreground">
                   {plans.length} plan{plans.length !== 1 ? "s" : ""} available
                 </p>
+              </div>
+              <div className="flex gap-1">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditProductDialog(product)}>
+                  <Edit className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setSelectedProduct(product); setShowDeleteProductDialog(true); }}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
             </div>
 
@@ -326,12 +499,12 @@ export default function PlansPage() {
             {plans.length === 0 ? (
               <Card className="border-border/50">
                 <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                  <div className={`h-16 w-16 rounded-full ${tool.bgColor} flex items-center justify-center mb-4`}>
-                    <tool.icon className={`h-8 w-8 ${tool.color}`} />
+                  <div className={`h-16 w-16 rounded-full ${visual.bgColor} flex items-center justify-center mb-4`}>
+                    <ProductIcon className={`h-8 w-8 ${visual.color}`} />
                   </div>
                   <h3 className="font-semibold text-lg">No plans yet</h3>
                   <p className="text-muted-foreground text-sm mt-1 mb-4">
-                    Create your first plan for {tool.name}
+                    Create your first plan for {product.name}
                   </p>
                   <Button onClick={openCreatePlanDialog}>
                     <Plus className="mr-2 h-4 w-4" />
@@ -343,6 +516,7 @@ export default function PlansPage() {
               <div className="space-y-6">
                 {plans.map((plan) => {
                   const planCost = plan.cost ?? plan.price_monthly ?? 0;
+                  const displayPrice = plan.price_label || plan.price || `$${planCost}`;
                   return (
                     <Card key={plan.id} className="border-border/50" data-testid={`plan-card-${plan.id}`}>
                       <CardHeader>
@@ -350,9 +524,12 @@ export default function PlansPage() {
                           <div>
                             <CardTitle className="text-xl flex items-center gap-2">
                               {plan.name}
-                              <Badge variant="outline" className={tool.bgColor}>
-                                {tool.name}
+                              <Badge variant="outline" className={visual.bgColor}>
+                                {plan.product_name || product.name}
                               </Badge>
+                              {(plan.is_popular || plan.popular) && (
+                                <Badge>Most Popular</Badge>
+                              )}
                             </CardTitle>
                             <CardDescription className="mt-1">{plan.description}</CardDescription>
                           </div>
@@ -386,11 +563,17 @@ export default function PlansPage() {
                               <p className="font-semibold">{plan.api_limit || 0}</p>
                             </div>
                             <div>
-                              <p className="text-muted-foreground">Manual Cost</p>
-                              <p className="font-bold text-lg text-primary">${planCost}</p>
+                              <p className="text-muted-foreground">Display Price</p>
+                              <p className="font-bold text-lg text-primary">
+                                {displayPrice}
+                                {(plan.billing_period || plan.period) && (
+                                  <span className="ml-1 text-sm font-medium text-muted-foreground">{plan.billing_period || plan.period}</span>
+                                )}
+                              </p>
+                              <p className="text-xs text-muted-foreground">Numeric cost: ${planCost}</p>
                             </div>
                             <div>
-                              <p className="text-muted-foreground">Active Tools</p>
+                              <p className="text-muted-foreground">Selectable Features</p>
                               <p className="font-semibold">{(plan.plan_tools || []).filter((toolItem) => toolItem.is_active).length}</p>
                             </div>
                           </div>
@@ -398,13 +581,13 @@ export default function PlansPage() {
                       </CardHeader>
                       
                       <CardContent>
-                        {/* Tools Section */}
+                        {/* Selectable Features Section */}
                         <Accordion type="single" collapsible className="w-full">
                           <AccordionItem value="tools" className="border-none">
                             <AccordionTrigger className="hover:no-underline py-2">
                               <div className="flex items-center gap-2">
                                 <Settings2 className="h-4 w-4" />
-                                <span>Manage Tools ({plan.plan_tools?.length || 0})</span>
+                                <span>Manage Selectable Features ({plan.plan_tools?.length || 0})</span>
                               </div>
                             </AccordionTrigger>
                             <AccordionContent>
@@ -412,7 +595,7 @@ export default function PlansPage() {
                                 <div className="flex justify-end">
                                   <Button size="sm" onClick={() => openAddToolDialog(plan.id)}>
                                     <Plus className="h-4 w-4 mr-1" />
-                                    Add Tool
+                                    Add Feature
                                   </Button>
                                 </div>
                                 
@@ -422,7 +605,7 @@ export default function PlansPage() {
                                       <TableHeader>
                                         <TableRow>
                                           <TableHead className="w-[50px]">Order</TableHead>
-                                          <TableHead>Tool Name</TableHead>
+                                          <TableHead>Feature Name</TableHead>
                                           <TableHead>Description</TableHead>
                                           <TableHead className="text-center">Active</TableHead>
                                           <TableHead className="text-right">Actions</TableHead>
@@ -477,8 +660,8 @@ export default function PlansPage() {
                                 ) : (
                                   <div className="text-center py-8 text-muted-foreground border rounded-md">
                                     <Settings2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                    <p>No tools configured yet</p>
-                                    <p className="text-sm">Add tools to let users select features</p>
+                                    <p>No selectable features configured yet</p>
+                                    <p className="text-sm">Add features that customers can select with this plan</p>
                                   </div>
                                 )}
                               </div>
@@ -507,8 +690,121 @@ export default function PlansPage() {
               </div>
             )}
           </TabsContent>
-        ))}
+          );
+        })}
       </Tabs>
+      )}
+
+      {/* Create/Edit Product Dialog */}
+      <Dialog
+        open={showCreateProductDialog || showEditProductDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowCreateProductDialog(false);
+            setShowEditProductDialog(false);
+            resetProductForm();
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg" data-testid="product-dialog">
+          <DialogHeader>
+            <DialogTitle>{showEditProductDialog ? "Edit Product" : "Add Product"}</DialogTitle>
+            <DialogDescription>
+              Products group subscription plans such as Starter, Enterprise, and Enterprise Plus.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Product Name</Label>
+                <Input
+                  placeholder="e.g., API Platform"
+                  value={productFormData.name}
+                  onChange={(e) => setProductFormData({ ...productFormData, name: e.target.value })}
+                  data-testid="product-name-input"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Product Key</Label>
+                <Input
+                  placeholder="api_platform"
+                  value={productFormData.key}
+                  onChange={(e) => setProductFormData({ ...productFormData, key: e.target.value })}
+                  data-testid="product-key-input"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea
+                placeholder="Brief description of the product"
+                value={productFormData.description}
+                onChange={(e) => setProductFormData({ ...productFormData, description: e.target.value })}
+                rows={2}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Display Order</Label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={productFormData.display_order}
+                  onChange={(e) => setProductFormData({ ...productFormData, display_order: e.target.value })}
+                />
+              </div>
+              <div className="flex items-center justify-between rounded-md border px-3 py-2">
+                <div>
+                  <Label>Active</Label>
+                  <p className="text-xs text-muted-foreground">Visible for new plans</p>
+                </div>
+                <Switch
+                  checked={productFormData.is_active}
+                  onCheckedChange={(checked) => setProductFormData({ ...productFormData, is_active: checked })}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCreateProductDialog(false);
+                setShowEditProductDialog(false);
+                resetProductForm();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={showEditProductDialog ? handleUpdateProduct : handleCreateProduct}
+              data-testid="save-product-btn"
+            >
+              {showEditProductDialog ? "Update Product" : "Add Product"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Product Dialog */}
+      <Dialog open={showDeleteProductDialog} onOpenChange={setShowDeleteProductDialog}>
+        <DialogContent data-testid="delete-product-dialog">
+          <DialogHeader>
+            <DialogTitle>Deactivate Product</DialogTitle>
+            <DialogDescription>
+              Products with plans are deactivated instead of deleted so subscription history stays intact.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteProductDialog(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteProduct} data-testid="confirm-delete-product-btn">
+              Deactivate Product
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Create/Edit Plan Dialog */}
       <Dialog
@@ -540,18 +836,18 @@ export default function PlansPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Tool</Label>
+                <Label>Product</Label>
                 <Select
-                  value={planFormData.tool}
-                  onValueChange={(value) => setPlanFormData({ ...planFormData, tool: value })}
+                  value={planFormData.product_id || selectedProductId}
+                  onValueChange={(value) => setPlanFormData({ ...planFormData, product_id: value })}
                 >
-                  <SelectTrigger data-testid="plan-tool-select">
+                  <SelectTrigger data-testid="plan-product-select">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {TOOLS.map((tool) => (
-                      <SelectItem key={tool.id} value={tool.id}>
-                        {tool.name}
+                    {products.map((product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -589,6 +885,36 @@ export default function PlansPage() {
                   data-testid="plan-cost-input"
                 />
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Display Price</Label>
+                <Input
+                  placeholder="$40 or Contact Sales"
+                  value={planFormData.price_label}
+                  onChange={(e) => setPlanFormData({ ...planFormData, price_label: e.target.value })}
+                  data-testid="plan-price-label-input"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Billing Period</Label>
+                <Input
+                  placeholder="/month/user"
+                  value={planFormData.billing_period}
+                  onChange={(e) => setPlanFormData({ ...planFormData, billing_period: e.target.value })}
+                  data-testid="plan-billing-period-input"
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between rounded-md border px-3 py-2">
+              <div>
+                <Label>Most Popular</Label>
+                <p className="text-xs text-muted-foreground">Show the popular badge on pricing cards</p>
+              </div>
+              <Switch
+                checked={planFormData.is_popular}
+                onCheckedChange={(checked) => setPlanFormData({ ...planFormData, is_popular: checked })}
+              />
             </div>
             <div className="space-y-2">
               <Label>Included Features (one per line)</Label>
@@ -630,7 +956,7 @@ export default function PlansPage() {
             <DialogTitle>Delete Plan</DialogTitle>
             <DialogDescription>
               Are you sure you want to delete the &quot;{selectedPlan?.name}&quot; plan? 
-              This will also delete all associated tools. This action cannot be undone.
+              This will also delete all associated selectable features. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -644,18 +970,18 @@ export default function PlansPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Add Tool Dialog */}
+      {/* Add Feature Dialog */}
       <Dialog open={showAddToolDialog} onOpenChange={setShowAddToolDialog}>
         <DialogContent data-testid="add-tool-dialog">
           <DialogHeader>
-            <DialogTitle>Add Tool</DialogTitle>
+            <DialogTitle>Add Feature</DialogTitle>
             <DialogDescription>
-              Add a selectable tool for this plan
+              Add a selectable feature for this plan
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Tool Name</Label>
+              <Label>Feature Name</Label>
               <Input
                 placeholder="e.g., API Design Studio"
                 value={toolFormData.name}
@@ -666,7 +992,7 @@ export default function PlansPage() {
             <div className="space-y-2">
               <Label>Description (optional)</Label>
               <Textarea
-                placeholder="Brief description of what this tool does"
+                placeholder="Brief description of what this feature includes"
                 value={toolFormData.description}
                 onChange={(e) => setToolFormData({ ...toolFormData, description: e.target.value })}
                 rows={2}
@@ -688,24 +1014,24 @@ export default function PlansPage() {
               Cancel
             </Button>
             <Button onClick={handleAddTool} data-testid="save-tool-btn">
-              Add Tool
+              Add Feature
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Tool Dialog */}
+      {/* Edit Feature Dialog */}
       <Dialog open={showEditToolDialog} onOpenChange={setShowEditToolDialog}>
         <DialogContent data-testid="edit-tool-dialog">
           <DialogHeader>
-            <DialogTitle>Edit Tool</DialogTitle>
+            <DialogTitle>Edit Feature</DialogTitle>
             <DialogDescription>
-              Update the tool details
+              Update the feature details
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Tool Name</Label>
+              <Label>Feature Name</Label>
               <Input
                 placeholder="e.g., API Design Studio"
                 value={toolFormData.name}
@@ -715,7 +1041,7 @@ export default function PlansPage() {
             <div className="space-y-2">
               <Label>Description (optional)</Label>
               <Textarea
-                placeholder="Brief description of what this tool does"
+                placeholder="Brief description of what this feature includes"
                 value={toolFormData.description}
                 onChange={(e) => setToolFormData({ ...toolFormData, description: e.target.value })}
                 rows={2}
@@ -742,11 +1068,11 @@ export default function PlansPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Tool Dialog */}
+      {/* Delete Feature Dialog */}
       <Dialog open={showDeleteToolDialog} onOpenChange={setShowDeleteToolDialog}>
         <DialogContent data-testid="delete-tool-dialog">
           <DialogHeader>
-            <DialogTitle>Delete Tool</DialogTitle>
+            <DialogTitle>Delete Feature</DialogTitle>
             <DialogDescription>
               Are you sure you want to delete &quot;{selectedPlanTool?.name}&quot;? This action cannot be undone.
             </DialogDescription>
@@ -756,7 +1082,7 @@ export default function PlansPage() {
               Cancel
             </Button>
             <Button variant="destructive" onClick={handleDeleteTool} data-testid="confirm-delete-tool-btn">
-              Delete Tool
+              Delete Feature
             </Button>
           </DialogFooter>
         </DialogContent>

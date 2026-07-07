@@ -131,10 +131,10 @@ export default function MyProjectsPage() {
     try {
       if (editingProject) {
         await myOrganizationApi.updateProject(editingProject.id, payload);
-        toast.success("Team updated successfully");
+        toast.success("Project updated successfully");
       } else {
         await myOrganizationApi.createProject(payload);
-        toast.success("Team onboarded successfully");
+        toast.success("Project onboarded successfully");
       }
 
       setDialogOpen(false);
@@ -142,7 +142,7 @@ export default function MyProjectsPage() {
       setEditingProject(null);
       fetchPageData();
     } catch (error) {
-      toast.error(getErrorMessage(error, "Failed to save team"));
+      toast.error(getErrorMessage(error, "Failed to save project"));
     } finally {
       setProcessing(false);
     }
@@ -184,12 +184,12 @@ export default function MyProjectsPage() {
       <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row justify-between gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Team</h1>
-            <p className="text-muted-foreground mt-1">View team members across business units and applications</p>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Project</h1>
+            <p className="text-muted-foreground mt-1">View project members across business units and applications</p>
           </div>
           <Button onClick={openCreateDialog}>
             <Plus className="mr-2 h-4 w-4" />
-            Onboard Team
+            Onboard Project
           </Button>
         </div>
         <OrganizationTabs />
@@ -199,7 +199,7 @@ export default function MyProjectsPage() {
         <CardHeader>
           <div className="flex flex-col lg:flex-row justify-between gap-4">
             <div>
-              <CardTitle>Team Members</CardTitle>
+              <CardTitle>Project Members</CardTitle>
               <CardDescription>{filteredTeamMembers.length} member(s) across all business units</CardDescription>
             </div>
             <div className="relative w-full lg:w-80">
@@ -220,7 +220,7 @@ export default function MyProjectsPage() {
             </div>
           ) : filteredTeamMembers.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              {teamSearch ? "No team members match your search" : "No team members invited yet"}
+              {teamSearch ? "No project members match your search" : "No project members invited yet"}
             </div>
           ) : (
             <div className="rounded-md border">
@@ -265,7 +265,7 @@ export default function MyProjectsPage() {
                           onClick={() => navigate("/onboard-bu")}
                         >
                           <Edit className="mr-2 h-4 w-4" />
-                          Edit BU
+                          Edit Business unit
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -283,15 +283,15 @@ export default function MyProjectsPage() {
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Package className="h-5 w-5" />
-                Teams ({filteredProjects.length})
+                Projects ({filteredProjects.length})
               </CardTitle>
-              <CardDescription>Teams can be linked to a BU or kept unassigned</CardDescription>
+              <CardDescription>Projects can be linked to a Business unit or kept unassigned</CardDescription>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative w-full sm:w-72">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search teams..."
+                  placeholder="Search projects..."
                   className="pl-9"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
@@ -299,10 +299,10 @@ export default function MyProjectsPage() {
               </div>
               <Select value={businessUnitFilter} onValueChange={setBusinessUnitFilter}>
                 <SelectTrigger className="w-full sm:w-56">
-                  <SelectValue placeholder="Filter by BU" />
+                  <SelectValue placeholder="Filter by Business unit" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All BUs</SelectItem>
+                  <SelectItem value="all">All Business units</SelectItem>
                   <SelectItem value={unassignedBusinessUnit}>Unassigned</SelectItem>
                   {businessUnits.map((businessUnit) => (
                     <SelectItem key={businessUnit.id} value={businessUnit.id}>
@@ -321,15 +321,15 @@ export default function MyProjectsPage() {
             </div>
           ) : filteredProjects.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              {search || businessUnitFilter !== "all" ? "No teams match your filters" : "No teams onboarded yet"}
+              {search || businessUnitFilter !== "all" ? "No projects match your filters" : "No projects onboarded yet"}
             </div>
           ) : (
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Team</TableHead>
-                    <TableHead>BU</TableHead>
+                    <TableHead>Project</TableHead>
+                    <TableHead>Business unit</TableHead>
                     <TableHead>Code</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Created</TableHead>
@@ -348,7 +348,7 @@ export default function MyProjectsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {project.business_unit_id ? businessUnitNameById[project.business_unit_id] || "Unknown BU" : (
+                        {project.business_unit_id ? businessUnitNameById[project.business_unit_id] || "Unknown Business unit" : (
                           <span className="text-xs text-muted-foreground">Unassigned</span>
                         )}
                       </TableCell>
@@ -387,16 +387,16 @@ export default function MyProjectsPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingProject ? "Edit Team" : "Onboard Team"}</DialogTitle>
+            <DialogTitle>{editingProject ? "Edit Project" : "Onboard Project"}</DialogTitle>
             <DialogDescription>
-              {editingProject ? "Update team details." : "Add a team for your approved organization."}
+              {editingProject ? "Update project details." : "Add a project for your approved organization."}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label>Team Name</Label>
+              <Label>Project Name</Label>
               <Input
-                placeholder="Platform Team"
+                placeholder="Platform Project"
                 value={formData.name}
                 onChange={(event) => setFormData({ ...formData, name: event.target.value })}
                 required
@@ -414,7 +414,7 @@ export default function MyProjectsPage() {
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select BU" />
+                  <SelectValue placeholder="Select Business unit" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={unassignedBusinessUnit}>Unassigned</SelectItem>
@@ -427,7 +427,7 @@ export default function MyProjectsPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Team Code</Label>
+              <Label>Project Code</Label>
               <Input
                 placeholder="PLATFORM"
                 value={formData.code}
@@ -437,7 +437,7 @@ export default function MyProjectsPage() {
             <div className="space-y-2">
               <Label>Description</Label>
               <Textarea
-                placeholder="Optional notes about this team"
+                placeholder="Optional notes about this project"
                 value={formData.description}
                 onChange={(event) => setFormData({ ...formData, description: event.target.value })}
               />
@@ -447,7 +447,7 @@ export default function MyProjectsPage() {
                 Cancel
               </Button>
               <Button type="submit" disabled={processing}>
-                {processing ? "Saving..." : editingProject ? "Save Changes" : "Onboard Team"}
+                {processing ? "Saving..." : editingProject ? "Save Changes" : "Onboard Project"}
               </Button>
             </DialogFooter>
           </form>

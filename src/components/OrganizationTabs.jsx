@@ -3,8 +3,8 @@ import { cn } from "../lib/utils";
 
 const tabs = [
   { label: "Organization", path: "/my-organization" },
-  { label: "Business Unit", path: "/onboard-bu" },
-  { label: "Team", path: "/onboard-project" },
+  { label: "Business unit", path: "/onboard-bu" },
+  { label: "Project", path: "/onboard-project" },
 ];
 
 export default function OrganizationTabs() {

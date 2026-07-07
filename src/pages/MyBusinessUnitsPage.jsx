@@ -57,6 +57,23 @@ const emptyBusinessUnit = {
   status: "active",
 };
 
+const noOwnerValue = "__no_owner__";
+
+const getStoredOwnerEmail = (value) => {
+  if (!value) return "";
+  const match = String(value).match(/<([^>]+)>/);
+  return match ? match[1] : value;
+};
+
+const getUserSelectValue = (value, users) => {
+  const lookup = getStoredOwnerEmail(value);
+  if (!lookup) return "";
+  const user = users.find((item) => item.email === lookup || item.id === lookup || item.name === lookup);
+  return user?.email || lookup;
+};
+
+const formatUserOption = (user) => `${user.name} (${user.email})`;
+
 const toDateInputValue = (value) => {
   if (!value) return "";
   const date = new Date(value);
@@ -102,6 +119,7 @@ const syncClasses = {
 
 export default function MyBusinessUnitsPage() {
   const [businessUnits, setBusinessUnits] = useState([]);
+  const [organizationUsers, setOrganizationUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -115,8 +133,12 @@ export default function MyBusinessUnitsPage() {
 
   const fetchBusinessUnits = async () => {
     try {
-      const response = await myOrganizationApi.getBusinessUnits({ include_projects: true });
-      setBusinessUnits(response.data);
+      const [businessUnitsResponse, usersResponse] = await Promise.all([
+        myOrganizationApi.getBusinessUnits({ include_projects: true }),
+        myOrganizationApi.getUsers(),
+      ]);
+      setBusinessUnits(businessUnitsResponse.data);
+      setOrganizationUsers(usersResponse.data || []);
     } catch (error) {
       toast.error("Failed to load business units");
     } finally {
@@ -138,7 +160,7 @@ export default function MyBusinessUnitsPage() {
       description: businessUnit.description || "",
       application_name: businessUnit.application_name || "",
       application_id: businessUnit.application_id || "",
-      owner_name: businessUnit.owner_name || "",
+      owner_name: getUserSelectValue(businessUnit.owner_name, organizationUsers),
       go_live_date: toDateInputValue(businessUnit.go_live_date),
       members_count: String(businessUnit.members_count ?? 0),
       consumers_count: String(businessUnit.consumers_count ?? 0),
@@ -163,7 +185,7 @@ export default function MyBusinessUnitsPage() {
       description: formData.description.trim() || null,
       application_name: formData.application_name.trim() || null,
       application_id: formData.application_id.trim() || null,
-      owner_name: formData.owner_name.trim() || null,
+      owner_name: formData.owner_name || null,
       go_live_date: toDateTimePayload(formData.go_live_date),
       members_count: Number(formData.members_count || 0),
       consumers_count: Number(formData.consumers_count || 0),
@@ -221,12 +243,12 @@ export default function MyBusinessUnitsPage() {
       <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row justify-between gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Onboard BU</h1>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Onboard Business unit</h1>
             <p className="text-muted-foreground mt-1">Create and manage business unit details for your organization</p>
           </div>
           <Button onClick={openCreateDialog}>
             <Plus className="mr-2 h-4 w-4" />
-            Onboard BU
+            Onboard Business unit
           </Button>
         </div>
         <OrganizationTabs />
@@ -238,9 +260,9 @@ export default function MyBusinessUnitsPage() {
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Building2 className="h-5 w-5" />
-                Business Units ({filteredBusinessUnits.length})
+                Business units ({filteredBusinessUnits.length})
               </CardTitle>
-              <CardDescription>BUs available for project and team onboarding</CardDescription>
+              <CardDescription>Business units available for project onboarding</CardDescription>
             </div>
             <div className="relative w-full sm:w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -366,18 +388,36 @@ export default function MyBusinessUnitsPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
           <DialogHeader>
-            <DialogTitle>{editingBusinessUnit ? "Edit BU" : "Onboard BU"}</DialogTitle>
+            <DialogTitle>{editingBusinessUnit ? "Edit Business unit" : "Onboard Business unit"}</DialogTitle>
             <DialogDescription>
               {editingBusinessUnit ? "Update business unit details." : "Add a business unit for your approved organization."}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="grid gap-4 md:grid-cols-2">
-              <FormInput label="BU Name" required value={formData.name} onChange={(value) => setFormData({ ...formData, name: value })} />
-              <FormInput label="BU Code" value={formData.code} onChange={(value) => setFormData({ ...formData, code: value })} />
+              <FormInput label="Business unit Name" required value={formData.name} onChange={(value) => setFormData({ ...formData, name: value })} />
+              <FormInput label="Business unit Code" value={formData.code} onChange={(value) => setFormData({ ...formData, code: value })} />
               <FormInput label="Application Name" value={formData.application_name} onChange={(value) => setFormData({ ...formData, application_name: value })} />
               <FormInput label="Application ID" value={formData.application_id} onChange={(value) => setFormData({ ...formData, application_id: value })} />
-              <FormInput label="Owner" value={formData.owner_name} onChange={(value) => setFormData({ ...formData, owner_name: value })} />
+              <div className="space-y-2">
+                <Label>Owner</Label>
+                <Select
+                  value={formData.owner_name || noOwnerValue}
+                  onValueChange={(value) => setFormData({ ...formData, owner_name: value === noOwnerValue ? "" : value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select organization user" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={noOwnerValue}>No owner</SelectItem>
+                    {organizationUsers.map((user) => (
+                      <SelectItem key={user.id} value={user.email}>
+                        {formatUserOption(user)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <FormInput label="Go-Live Date" type="date" value={formData.go_live_date} onChange={(value) => setFormData({ ...formData, go_live_date: value })} />
               <FormInput label="Members" type="number" min="0" value={formData.members_count} onChange={(value) => setFormData({ ...formData, members_count: value })} />
               <FormInput label="Consumers" type="number" min="0" value={formData.consumers_count} onChange={(value) => setFormData({ ...formData, consumers_count: value })} />
@@ -411,7 +451,7 @@ export default function MyBusinessUnitsPage() {
             <div className="space-y-2">
               <Label>Description</Label>
               <Textarea
-                placeholder="Optional notes about this BU"
+                placeholder="Optional notes about this Business unit"
                 value={formData.description}
                 onChange={(event) => setFormData({ ...formData, description: event.target.value })}
               />
@@ -429,7 +469,7 @@ export default function MyBusinessUnitsPage() {
                 Cancel
               </Button>
               <Button type="submit" disabled={processing}>
-                {processing ? "Saving..." : editingBusinessUnit ? "Save Changes" : "Onboard BU"}
+                {processing ? "Saving..." : editingBusinessUnit ? "Save Changes" : "Onboard Business unit"}
               </Button>
             </DialogFooter>
           </form>
