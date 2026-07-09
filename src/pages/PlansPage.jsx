@@ -46,8 +46,8 @@ import {
 
 const PRODUCT_VISUALS = {
   forgeshift: { icon: ArrowLeftRight, color: "text-amber-500", bgColor: "bg-amber-500/10" },
-  forgestudio: { icon: Package, color: "text-blue-500", bgColor: "bg-blue-500/10" },
-  forgeq: { icon: Boxes, color: "text-cyan-500", bgColor: "bg-cyan-500/10" },
+  forgecatalog: { icon: Package, color: "text-blue-500", bgColor: "bg-blue-500/10" },
+  forgefuzz: { icon: Boxes, color: "text-cyan-500", bgColor: "bg-cyan-500/10" },
   forgesphere: { icon: Package, color: "text-emerald-500", bgColor: "bg-emerald-500/10" },
   forgeai: { icon: Zap, color: "text-violet-500", bgColor: "bg-violet-500/10" },
   agentic_ai: { icon: Zap, color: "text-fuchsia-500", bgColor: "bg-fuchsia-500/10" },
