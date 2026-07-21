@@ -132,7 +132,21 @@ export default function UsersPage() {
     );
   };
 
-  const getOrgRoles = (orgId) => roles.filter((r) => r.organization_id === orgId);
+  const getAvailableRoles = (orgId) => {
+    const matchingRoles = roles.filter((role) => !role.organization_id || role.organization_id === orgId);
+    return Array.from(
+      matchingRoles
+        .reduce((roleMap, role) => {
+          const key = role.name || role.id;
+          const existing = roleMap.get(key);
+          if (!existing || (!role.organization_id && existing.organization_id)) {
+            roleMap.set(key, role);
+          }
+          return roleMap;
+        }, new Map())
+        .values()
+    );
+  };
 
   if (loading) {
     return (
@@ -333,7 +347,7 @@ export default function UsersPage() {
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
-                  {getOrgRoles(formData.organization_id).map((role) => (
+                  {getAvailableRoles(formData.organization_id).map((role) => (
                     <SelectItem key={role.id} value={role.id}>
                       {role.name}
                     </SelectItem>

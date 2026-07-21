@@ -5,6 +5,7 @@ import { Badge } from "../components/ui/badge";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Textarea } from "../components/ui/textarea";
+import { Checkbox } from "../components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -34,9 +35,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
-import { organizationsApi } from "../lib/api";
+import { organizationsApi, plansApi } from "../lib/api";
 import { toast } from "sonner";
-import { Building2, Search, MoreVertical, Trash2, Eye, Mail, Phone, Globe, Edit, Hash, AtSign, Plus, Layers3, Users } from "lucide-react";
+import { Building2, Search, MoreVertical, Trash2, Eye, Mail, Phone, Globe, Edit, Hash, AtSign, Plus, Layers3, Users, Package } from "lucide-react";
 import { format } from "date-fns";
 
 const parseList = (value) =>
@@ -51,8 +52,8 @@ const emptyCreateData = {
   name: "",
   email: "",
   domain: "",
-  requested_plans: "",
-  requested_tools: "",
+  requested_plans: [],
+  requested_tools_by_plan: {},
   contact_person: "",
   phone: "",
   address: "",
@@ -76,6 +77,8 @@ export default function OrganizationsPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [createData, setCreateData] = useState(emptyCreateData);
+  const [planCatalog, setPlanCatalog] = useState([]);
+  const [loadingPlans, setLoadingPlans] = useState(false);
   const [editData, setEditData] = useState({
     external_org_id: "",
     auth0_org_id: "",
@@ -92,6 +95,12 @@ export default function OrganizationsPage() {
     fetchOrganizations();
   }, [statusFilter]);
 
+  useEffect(() => {
+    if (showCreateDialog) {
+      fetchPlanCatalog();
+    }
+  }, [showCreateDialog]);
+
   const fetchOrganizations = async () => {
     try {
       const params = statusFilter !== "all" ? { status: statusFilter } : {};
@@ -101,6 +110,18 @@ export default function OrganizationsPage() {
       toast.error("Failed to load organizations");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPlanCatalog = async () => {
+    setLoadingPlans(true);
+    try {
+      const response = await plansApi.getAll({ active_only: true });
+      setPlanCatalog(response.data || []);
+    } catch (error) {
+      toast.error("Failed to load product plans");
+    } finally {
+      setLoadingPlans(false);
     }
   };
 
@@ -117,16 +138,19 @@ export default function OrganizationsPage() {
   };
 
   const handleCreate = async () => {
-    const requestedPlans = parseList(createData.requested_plans);
-    const requestedTools = parseList(createData.requested_tools);
     if (!createData.name.trim() || !createData.email.trim() || !createData.contact_person.trim()) {
       toast.error("Organization name, email, and contact person are required");
       return;
     }
-    if (requestedPlans.length === 0 || requestedTools.length === 0) {
-      toast.error("At least one requested plan and tool is required");
+    if (createData.requested_plans.length === 0) {
+      toast.error("Select at least one product plan");
       return;
     }
+
+    const requestedPlans = createData.requested_plans.map((planId) => ({
+      plan_id: planId,
+      tool_ids: createData.requested_tools_by_plan[planId] || [],
+    }));
 
     setCreating(true);
     try {
@@ -135,7 +159,6 @@ export default function OrganizationsPage() {
         email: createData.email.trim(),
         domain: createData.domain.trim() || null,
         requested_plans: requestedPlans,
-        requested_tools: requestedTools,
         contact_person: createData.contact_person.trim(),
         phone: createData.phone.trim() || null,
         address: createData.address.trim() || null,
@@ -156,6 +179,62 @@ export default function OrganizationsPage() {
       setCreating(false);
     }
   };
+
+  const getPlanTools = (plan) => (plan.plan_tools || []).filter((tool) => tool.is_active !== false);
+
+  const togglePlanSelection = (plan) => {
+    const isSelected = createData.requested_plans.includes(plan.id);
+    if (isSelected) {
+      const nextTools = { ...createData.requested_tools_by_plan };
+      delete nextTools[plan.id];
+      setCreateData({
+        ...createData,
+        requested_plans: createData.requested_plans.filter((planId) => planId !== plan.id),
+        requested_tools_by_plan: nextTools,
+      });
+      return;
+    }
+
+    setCreateData({
+      ...createData,
+      requested_plans: [...createData.requested_plans, plan.id],
+      requested_tools_by_plan: {
+        ...createData.requested_tools_by_plan,
+        [plan.id]: getPlanTools(plan).map((tool) => tool.id),
+      },
+    });
+  };
+
+  const togglePlanToolSelection = (plan, tool) => {
+    const selectedTools = createData.requested_tools_by_plan[plan.id] || [];
+    const nextTools = selectedTools.includes(tool.id)
+      ? selectedTools.filter((toolId) => toolId !== tool.id)
+      : [...selectedTools, tool.id];
+
+    setCreateData({
+      ...createData,
+      requested_plans: createData.requested_plans.includes(plan.id)
+        ? createData.requested_plans
+        : [...createData.requested_plans, plan.id],
+      requested_tools_by_plan: {
+        ...createData.requested_tools_by_plan,
+        [plan.id]: nextTools,
+      },
+    });
+  };
+
+  const plansByProduct = planCatalog.reduce((groups, plan) => {
+    const key = plan.product_key || plan.product_id || plan.tool || "other";
+    if (!groups[key]) {
+      groups[key] = {
+        key,
+        name: plan.product_name || key,
+        plans: [],
+      };
+    }
+    groups[key].plans.push(plan);
+    return groups;
+  }, {});
 
   const openEditDialog = (org) => {
     setSelectedOrg(org);
@@ -435,15 +514,73 @@ export default function OrganizationsPage() {
             <CreateInput label="Domain" placeholder="example.com" value={createData.domain} onChange={(value) => setCreateData({ ...createData, domain: value })} />
             <CreateInput label="Contact Person" value={createData.contact_person} onChange={(value) => setCreateData({ ...createData, contact_person: value })} required />
             <CreateInput label="Phone" value={createData.phone} onChange={(value) => setCreateData({ ...createData, phone: value })} />
-            <CreateInput label="Requested Plans" placeholder="plan_api_enterprise, plan_ai_enterprise" value={createData.requested_plans} onChange={(value) => setCreateData({ ...createData, requested_plans: value })} required />
-            <div className="space-y-2 md:col-span-2">
-              <Label>Requested Tools</Label>
-              <Textarea
-                placeholder="API Design Studio, Data Modelling"
-                value={createData.requested_tools}
-                onChange={(e) => setCreateData({ ...createData, requested_tools: e.target.value })}
-                rows={3}
-              />
+            <div className="space-y-3 md:col-span-2">
+              <div className="flex items-center justify-between gap-3">
+                <Label>Product Plans</Label>
+                <Badge variant="secondary">{createData.requested_plans.length} selected</Badge>
+              </div>
+              {loadingPlans ? (
+                <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                  Loading product plans...
+                </div>
+              ) : planCatalog.length === 0 ? (
+                <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                  No active plans found.
+                </div>
+              ) : (
+                <div className="space-y-3 rounded-md border p-3">
+                  {Object.values(plansByProduct).map((product) => (
+                    <div key={product.key} className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Package className="h-4 w-4 text-muted-foreground" />
+                        <span>{product.name}</span>
+                      </div>
+                      <div className="grid gap-2 md:grid-cols-2">
+                        {product.plans.map((plan) => {
+                          const isPlanSelected = createData.requested_plans.includes(plan.id);
+                          const selectedTools = createData.requested_tools_by_plan[plan.id] || [];
+                          const planTools = getPlanTools(plan);
+                          return (
+                            <div key={plan.id} className="rounded-md border bg-background/60 p-3">
+                              <div className="flex items-start gap-3">
+                                <Checkbox
+                                  checked={isPlanSelected}
+                                  onCheckedChange={() => togglePlanSelection(plan)}
+                                  aria-label={`Select ${plan.product_name || plan.product_key} ${plan.name}`}
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <p className="font-medium leading-none">{plan.name}</p>
+                                    <Badge variant="outline" className="text-xs">{plan.price_label || plan.price || "$0"}</Badge>
+                                  </div>
+                                  <p className="mt-1 text-xs text-muted-foreground">{plan.id}</p>
+                                </div>
+                              </div>
+                              {planTools.length > 0 && (
+                                <div className="mt-3 space-y-2 border-t pt-3">
+                                  {planTools.map((tool) => (
+                                    <label key={tool.id} className="flex items-start gap-2 text-sm">
+                                      <Checkbox
+                                        checked={selectedTools.includes(tool.id)}
+                                        onCheckedChange={() => togglePlanToolSelection(plan, tool)}
+                                        aria-label={`Select ${tool.name}`}
+                                      />
+                                      <span className="min-w-0">
+                                        <span className="block font-medium leading-none">{tool.name}</span>
+                                        <span className="mt-1 block text-xs text-muted-foreground">{tool.id}</span>
+                                      </span>
+                                    </label>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="space-y-2 md:col-span-2">
               <Label>Address</Label>

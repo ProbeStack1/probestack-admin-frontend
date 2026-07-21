@@ -41,7 +41,7 @@ import { plansApi } from "../lib/api";
 import { toast } from "sonner";
 import { 
   Plus, Edit, Trash2, Check, Package, Zap, ArrowLeftRight, 
-  Settings2, GripVertical, RefreshCw, Boxes
+  Settings2, GripVertical, RefreshCw, Boxes, RotateCcw
 } from "lucide-react";
 
 const PRODUCT_VISUALS = {
@@ -62,6 +62,7 @@ const getProductVisual = (product) => PRODUCT_VISUALS[product?.key] || {
 export default function PlansPage() {
   const [products, setProducts] = useState([]);
   const [plans, setPlans] = useState([]);
+  const [inactivePlans, setInactivePlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedProductId, setSelectedProductId] = useState("");
   
@@ -113,7 +114,7 @@ export default function PlansPage() {
 
   const fetchProducts = useCallback(async () => {
     try {
-      const response = await plansApi.getProducts();
+      const response = await plansApi.getProducts({ include_inactive: true });
       const productList = response.data || [];
       setProducts(productList);
       if (!selectedProductId && productList.length > 0) {
@@ -139,6 +140,20 @@ export default function PlansPage() {
     }
   }, [selectedProductId]);
 
+  const fetchInactivePlans = useCallback(async () => {
+    if (!selectedProductId) {
+      setInactivePlans([]);
+      return;
+    }
+    try {
+      const response = await plansApi.getInactive({ product_id: selectedProductId });
+      setInactivePlans(response.data || []);
+    } catch (error) {
+      setInactivePlans([]);
+      toast.error("Failed to load deactivated plans");
+    }
+  }, [selectedProductId]);
+
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
@@ -147,9 +162,14 @@ export default function PlansPage() {
     fetchPlans();
   }, [fetchPlans]);
 
+  useEffect(() => {
+    fetchInactivePlans();
+  }, [fetchInactivePlans]);
+
   const refreshProductsAndPlans = async () => {
     await fetchProducts();
     await fetchPlans();
+    await fetchInactivePlans();
   };
 
   const handleCreateProduct = async () => {
@@ -249,13 +269,23 @@ export default function PlansPage() {
   const handleDeletePlan = async () => {
     if (!selectedPlan) return;
     try {
-      await plansApi.delete(selectedPlan.id);
-      toast.success("Plan deleted successfully");
-      fetchPlans();
+      const response = await plansApi.delete(selectedPlan.id);
+      toast.success(response.data?.message || "Plan updated successfully");
+      refreshProductsAndPlans();
       setShowDeletePlanDialog(false);
       setSelectedPlan(null);
     } catch (error) {
       toast.error("Failed to delete plan");
+    }
+  };
+
+  const handleActivatePlan = async (plan) => {
+    try {
+      await plansApi.activate(plan.id);
+      toast.success("Plan activated successfully");
+      refreshProductsAndPlans();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to activate plan"));
     }
   };
 
@@ -689,6 +719,62 @@ export default function PlansPage() {
                 })}
               </div>
             )}
+
+            {inactivePlans.length > 0 && (
+              <div className="mt-8 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-base font-semibold">Deactivated Plans</h3>
+                    <p className="text-sm text-muted-foreground">Restore a plan when it should be available again.</p>
+                  </div>
+                  <Badge variant="secondary">{inactivePlans.length}</Badge>
+                </div>
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Plan</TableHead>
+                        <TableHead>Display Price</TableHead>
+                        <TableHead>Features</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {inactivePlans.map((plan) => {
+                        const planCost = plan.cost ?? plan.price_monthly ?? 0;
+                        const displayPrice = plan.price_label || plan.price || `$${planCost}`;
+                        return (
+                          <TableRow key={plan.id} className="opacity-75" data-testid={`inactive-plan-${plan.id}`}>
+                            <TableCell>
+                              <div className="font-medium">{plan.name}</div>
+                              <div className="text-sm text-muted-foreground">{plan.description}</div>
+                            </TableCell>
+                            <TableCell>
+                              {displayPrice}
+                              {(plan.billing_period || plan.period) && (
+                                <span className="ml-1 text-muted-foreground">{plan.billing_period || plan.period}</span>
+                              )}
+                            </TableCell>
+                            <TableCell>{(plan.plan_tools || []).length}</TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleActivatePlan(plan)}
+                                data-testid={`activate-plan-${plan.id}`}
+                              >
+                                <RotateCcw className="mr-2 h-4 w-4" />
+                                Restore
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
           </TabsContent>
           );
         })}
@@ -953,10 +1039,9 @@ export default function PlansPage() {
       <Dialog open={showDeletePlanDialog} onOpenChange={setShowDeletePlanDialog}>
         <DialogContent data-testid="delete-plan-dialog">
           <DialogHeader>
-            <DialogTitle>Delete Plan</DialogTitle>
+            <DialogTitle>Remove Plan</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete the &quot;{selectedPlan?.name}&quot; plan? 
-              This will also delete all associated selectable features. This action cannot be undone.
+              Plans with subscription history are deactivated and can be restored later. Plans with no history are deleted with their selectable features.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -964,7 +1049,7 @@ export default function PlansPage() {
               Cancel
             </Button>
             <Button variant="destructive" onClick={handleDeletePlan} data-testid="confirm-delete-plan-btn">
-              Delete Plan
+              Remove Plan
             </Button>
           </DialogFooter>
         </DialogContent>
