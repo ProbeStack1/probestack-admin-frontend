@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
@@ -7,6 +7,8 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Switch } from "../components/ui/switch";
 import { Separator } from "../components/ui/separator";
+import { Badge } from "../components/ui/badge";
+import { RadioGroup, RadioGroupItem } from "../components/ui/radio-group";
 import { toast } from "sonner";
 import { User, Moon, Sun, Bell, Shield, LogOut, Key, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -30,6 +32,29 @@ export default function SettingsPage() {
     confirm: false,
   });
   const [changingPassword, setChangingPassword] = useState(false);
+  const [identityProvider, setIdentityProvider] = useState(null);
+  const [selectedProvider, setSelectedProvider] = useState("zitadel");
+  const [loadingProvider, setLoadingProvider] = useState(false);
+  const [savingProvider, setSavingProvider] = useState(false);
+
+  const isSuperAdmin = admin?.role === "super_admin";
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    const loadIdentityProvider = async () => {
+      setLoadingProvider(true);
+      try {
+        const response = await api.get("/identity-provider");
+        setIdentityProvider(response.data);
+        setSelectedProvider(response.data.active_provider || "zitadel");
+      } catch (error) {
+        toast.error(getErrorMessage(error, "Failed to load identity provider"));
+      } finally {
+        setLoadingProvider(false);
+      }
+    };
+    loadIdentityProvider();
+  }, [isSuperAdmin]);
 
   const handleLogout = () => {
     logout();
@@ -75,6 +100,25 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSaveIdentityProvider = async () => {
+    setSavingProvider(true);
+    try {
+      const response = await api.put("/identity-provider", { provider: selectedProvider });
+      setIdentityProvider(response.data);
+      setSelectedProvider(response.data.active_provider);
+      toast.success("Identity provider updated");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to update identity provider"));
+    } finally {
+      setSavingProvider(false);
+    }
+  };
+
+  const providerStatus = (provider) => {
+    const match = identityProvider?.providers?.find((item) => item.provider === provider);
+    return match?.configured ? "Configured" : "Not configured";
+  };
+
   return (
     <div className="space-y-6 animate-fade-in" data-testid="settings-page">
       {/* Header */}
@@ -108,6 +152,53 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {isSuperAdmin && (
+          <Card className="border-border/50">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Identity Provider
+              </CardTitle>
+              <CardDescription>Switch authentication and provisioning between providers</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <RadioGroup
+                value={selectedProvider}
+                onValueChange={setSelectedProvider}
+                className="grid gap-3 md:grid-cols-2"
+                disabled={loadingProvider || savingProvider}
+              >
+                {["zitadel", "auth0"].map((provider) => (
+                  <Label
+                    key={provider}
+                    htmlFor={`identity-provider-${provider}`}
+                    className="flex cursor-pointer items-center justify-between rounded-lg border border-border p-4"
+                  >
+                    <div className="flex items-center gap-3">
+                      <RadioGroupItem id={`identity-provider-${provider}`} value={provider} />
+                      <div>
+                        <div className="font-medium uppercase">{provider}</div>
+                        <div className="text-xs text-muted-foreground">{providerStatus(provider)}</div>
+                      </div>
+                    </div>
+                    {identityProvider?.active_provider === provider && (
+                      <Badge variant="secondary">Active</Badge>
+                    )}
+                  </Label>
+                ))}
+              </RadioGroup>
+              <div className="flex justify-end">
+                <Button
+                  onClick={handleSaveIdentityProvider}
+                  disabled={savingProvider || loadingProvider || selectedProvider === identityProvider?.active_provider}
+                >
+                  {savingProvider ? "Saving..." : "Save Provider"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Security - Password Change */}
         <Card className="border-border/50">

@@ -5,7 +5,7 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { myOrganizationApi } from "../lib/api";
 import { toast } from "sonner";
-import { CreditCard, Calendar, DollarSign, Package, TrendingUp, Clock } from "lucide-react";
+import { CreditCard, Calendar, DollarSign, Package, TrendingUp, Clock, Gauge } from "lucide-react";
 import { format } from "date-fns";
 
 export default function MySubscriptionPage() {
@@ -71,7 +71,7 @@ export default function MySubscriptionPage() {
             <div className="space-y-5">
               {activeSubs.map((activeSub) => (
                 <div key={activeSub.id} className="rounded-md border p-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Package className="h-4 w-4" />
@@ -103,6 +103,13 @@ export default function MySubscriptionPage() {
                       <p className="text-xl font-bold">
                         {format(new Date(activeSub.end_date), "MMM d, yyyy")}
                       </p>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Gauge className="h-4 w-4" />
+                        <span className="text-sm">API Count</span>
+                      </div>
+                      <p className="text-xl font-bold">{activeSub.api_count ?? "Not set"}</p>
                     </div>
                   </div>
                   <div className="mt-6 pt-6 border-t">

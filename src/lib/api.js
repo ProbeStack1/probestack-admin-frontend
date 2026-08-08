@@ -55,6 +55,8 @@ export const organizationsApi = {
 export const subscriptionsApi = {
   getAll: (params) => api.get("/subscriptions", { params }),
   getById: (id) => api.get(`/subscriptions/${id}`),
+  updateApiCount: (id, data) => api.put(`/subscriptions/${id}/api-count`, data),
+  updateBillingSettings: (id, data) => api.put(`/subscriptions/${id}/billing-settings`, data),
   pause: (id) => api.post(`/subscriptions/${id}/pause`),
   resume: (id) => api.post(`/subscriptions/${id}/resume`),
   cancel: (id) => api.post(`/subscriptions/${id}/cancel`),
@@ -147,6 +149,7 @@ export const myOrganizationApi = {
   
   // Organization details
   getOrganization: () => api.get("/my-organization"),
+  updateOrganization: (data) => api.put("/my-organization", data),
   
   // Subscription
   getSubscription: () => api.get("/my-organization/subscription"),
@@ -179,6 +182,12 @@ export const myOrganizationApi = {
   updateProject: (id, data) => api.put(`/my-organization/projects/${id}`, data),
   getProjectTeam: (projectId) => api.get(`/my-organization/projects/${projectId}/team`),
   inviteProjectTeam: (projectId, data) => api.post(`/my-organization/projects/${projectId}/team/invite`, data),
+
+  // Applications in my org
+  getApplications: (params) => api.get("/my-organization/applications", { params }),
+  getApplicationById: (id) => api.get(`/my-organization/applications/${id}`),
+  createApplication: (data) => api.post("/my-organization/applications", data),
+  updateApplication: (id, data) => api.put(`/my-organization/applications/${id}`, data),
   
   // Billing for my org
   getBilling: () => api.get("/my-organization/billing"),

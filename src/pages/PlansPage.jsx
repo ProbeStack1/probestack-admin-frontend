@@ -59,6 +59,29 @@ const getProductVisual = (product) => PRODUCT_VISUALS[product?.key] || {
   bgColor: "bg-emerald-500/10",
 };
 
+const getPlanOptionLabels = (product) => {
+  if (product?.key === "forgeshift") {
+    return {
+      plural: "Migration Options",
+      singular: "Migration Option",
+      add: "Add Migration Option",
+      empty: "No migration options configured yet",
+      emptyHint: "Add migration paths that customers can select with this ForgeShift plan",
+      description: "Configure which source-to-target migrations this plan supports",
+      placeholder: "e.g., Apigee Edge to Apigee X",
+    };
+  }
+  return {
+    plural: "Selectable Features",
+    singular: "Feature",
+    add: "Add Feature",
+    empty: "No selectable features configured yet",
+    emptyHint: "Add features that customers can select with this plan",
+    description: "Configure selectable features for this plan",
+    placeholder: "e.g., API Design Studio",
+  };
+};
+
 export default function PlansPage() {
   const [products, setProducts] = useState([]);
   const [plans, setPlans] = useState([]);
@@ -434,6 +457,10 @@ export default function PlansPage() {
     setSelectedProduct(null);
   };
 
+  const managingPlan = plans.find((plan) => plan.id === managingPlanId);
+  const managingProduct = products.find((product) => product.id === managingPlan?.product_id) || products.find((product) => product.id === selectedProductId);
+  const managingOptionLabels = getPlanOptionLabels(managingProduct);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -500,6 +527,7 @@ export default function PlansPage() {
         {products.map((product) => {
           const visual = getProductVisual(product);
           const ProductIcon = visual.icon;
+          const optionLabels = getPlanOptionLabels(product);
           return (
           <TabsContent key={product.id} value={product.id} className="mt-6">
             <div className="flex items-center gap-3 mb-6">
@@ -563,24 +591,36 @@ export default function PlansPage() {
                             </CardTitle>
                             <CardDescription className="mt-1">{plan.description}</CardDescription>
                           </div>
-                          <div className="flex gap-1">
+                          <div className="flex flex-wrap justify-end gap-2">
                             <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
+                              variant="outline"
+                              size="sm"
+                              className="gap-2"
                               onClick={() => openEditPlanDialog(plan)}
                               data-testid={`edit-plan-${plan.id}`}
                             >
                               <Edit className="h-4 w-4" />
+                              Edit Plan
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-2"
+                              onClick={() => openAddToolDialog(plan.id)}
+                              data-testid={`add-option-${plan.id}`}
+                            >
+                              <Plus className="h-4 w-4" />
+                              {optionLabels.add}
                             </Button>
                             <Button
                               variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive"
+                              size="sm"
+                              className="gap-2 text-destructive"
                               onClick={() => { setSelectedPlan(plan); setShowDeletePlanDialog(true); }}
                               data-testid={`delete-plan-${plan.id}`}
                             >
                               <Trash2 className="h-4 w-4" />
+                              Remove
                             </Button>
                           </div>
                         </div>
@@ -603,7 +643,7 @@ export default function PlansPage() {
                               <p className="text-xs text-muted-foreground">Numeric cost: ${planCost}</p>
                             </div>
                             <div>
-                              <p className="text-muted-foreground">Selectable Features</p>
+                              <p className="text-muted-foreground">{optionLabels.plural}</p>
                               <p className="font-semibold">{(plan.plan_tools || []).filter((toolItem) => toolItem.is_active).length}</p>
                             </div>
                           </div>
@@ -617,7 +657,7 @@ export default function PlansPage() {
                             <AccordionTrigger className="hover:no-underline py-2">
                               <div className="flex items-center gap-2">
                                 <Settings2 className="h-4 w-4" />
-                                <span>Manage Selectable Features ({plan.plan_tools?.length || 0})</span>
+                                <span>Manage {optionLabels.plural} ({plan.plan_tools?.length || 0})</span>
                               </div>
                             </AccordionTrigger>
                             <AccordionContent>
@@ -625,7 +665,7 @@ export default function PlansPage() {
                                 <div className="flex justify-end">
                                   <Button size="sm" onClick={() => openAddToolDialog(plan.id)}>
                                     <Plus className="h-4 w-4 mr-1" />
-                                    Add Feature
+                                    {optionLabels.add}
                                   </Button>
                                 </div>
                                 
@@ -635,7 +675,7 @@ export default function PlansPage() {
                                       <TableHeader>
                                         <TableRow>
                                           <TableHead className="w-[50px]">Order</TableHead>
-                                          <TableHead>Feature Name</TableHead>
+                                          <TableHead>{optionLabels.singular}</TableHead>
                                           <TableHead>Description</TableHead>
                                           <TableHead className="text-center">Active</TableHead>
                                           <TableHead className="text-right">Actions</TableHead>
@@ -690,8 +730,8 @@ export default function PlansPage() {
                                 ) : (
                                   <div className="text-center py-8 text-muted-foreground border rounded-md">
                                     <Settings2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                    <p>No selectable features configured yet</p>
-                                    <p className="text-sm">Add features that customers can select with this plan</p>
+                                    <p>{optionLabels.empty}</p>
+                                    <p className="text-sm">{optionLabels.emptyHint}</p>
                                   </div>
                                 )}
                               </div>
@@ -813,7 +853,7 @@ export default function PlansPage() {
               <div className="space-y-2">
                 <Label>Product Key</Label>
                 <Input
-                  placeholder="api_platform"
+                  placeholder="forgeq"
                   value={productFormData.key}
                   onChange={(e) => setProductFormData({ ...productFormData, key: e.target.value })}
                   data-testid="product-key-input"
@@ -1059,16 +1099,16 @@ export default function PlansPage() {
       <Dialog open={showAddToolDialog} onOpenChange={setShowAddToolDialog}>
         <DialogContent data-testid="add-tool-dialog">
           <DialogHeader>
-            <DialogTitle>Add Feature</DialogTitle>
+            <DialogTitle>{managingOptionLabels.add}</DialogTitle>
             <DialogDescription>
-              Add a selectable feature for this plan
+              {managingOptionLabels.description}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Feature Name</Label>
+              <Label>{managingOptionLabels.singular} Name</Label>
               <Input
-                placeholder="e.g., API Design Studio"
+                placeholder={managingOptionLabels.placeholder}
                 value={toolFormData.name}
                 onChange={(e) => setToolFormData({ ...toolFormData, name: e.target.value })}
                 data-testid="tool-name-input"
@@ -1099,7 +1139,7 @@ export default function PlansPage() {
               Cancel
             </Button>
             <Button onClick={handleAddTool} data-testid="save-tool-btn">
-              Add Feature
+              {managingOptionLabels.add}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1109,16 +1149,16 @@ export default function PlansPage() {
       <Dialog open={showEditToolDialog} onOpenChange={setShowEditToolDialog}>
         <DialogContent data-testid="edit-tool-dialog">
           <DialogHeader>
-            <DialogTitle>Edit Feature</DialogTitle>
+            <DialogTitle>Edit {managingOptionLabels.singular}</DialogTitle>
             <DialogDescription>
-              Update the feature details
+              Update the {managingOptionLabels.singular.toLowerCase()} details
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Feature Name</Label>
+              <Label>{managingOptionLabels.singular} Name</Label>
               <Input
-                placeholder="e.g., API Design Studio"
+                placeholder={managingOptionLabels.placeholder}
                 value={toolFormData.name}
                 onChange={(e) => setToolFormData({ ...toolFormData, name: e.target.value })}
               />
@@ -1147,7 +1187,7 @@ export default function PlansPage() {
               Cancel
             </Button>
             <Button onClick={handleUpdateTool}>
-              Update Tool
+              Update {managingOptionLabels.singular}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1157,7 +1197,7 @@ export default function PlansPage() {
       <Dialog open={showDeleteToolDialog} onOpenChange={setShowDeleteToolDialog}>
         <DialogContent data-testid="delete-tool-dialog">
           <DialogHeader>
-            <DialogTitle>Delete Feature</DialogTitle>
+            <DialogTitle>Delete {managingOptionLabels.singular}</DialogTitle>
             <DialogDescription>
               Are you sure you want to delete &quot;{selectedPlanTool?.name}&quot;? This action cannot be undone.
             </DialogDescription>
@@ -1167,7 +1207,7 @@ export default function PlansPage() {
               Cancel
             </Button>
             <Button variant="destructive" onClick={handleDeleteTool} data-testid="confirm-delete-tool-btn">
-              Delete Feature
+              Delete {managingOptionLabels.singular}
             </Button>
           </DialogFooter>
         </DialogContent>

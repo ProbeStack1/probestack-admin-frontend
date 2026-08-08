@@ -35,8 +35,9 @@ import {
   TrendingUp,
   UserCog,
   UsersRound,
-  FlaskConical,
   UserCheck,
+  KeyRound,
+  AppWindow,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 
@@ -54,7 +55,7 @@ const superAdminNavItems = [
   { path: "/roles", icon: Shield, label: "Roles" },
   { path: "/billing", icon: Receipt, label: "Billing" },
   { path: "/notifications", icon: Bell, label: "Notifications" },
-  { path: "/auth0-test", icon: FlaskConical, label: "Auth0 Test" },
+  { path: "/zitadel-test", icon: KeyRound, label: "Zitadel Test" },
   { path: "/settings", icon: Settings, label: "Settings" },
 ];
 
@@ -65,6 +66,7 @@ const orgAdminNavItems = [
   { path: "/my-team", icon: UsersRound, label: "Organization Admins" },
   { path: "/onboard-bu", icon: Building2, label: "Onboard Business unit" },
   { path: "/onboard-project", icon: Package, label: "Onboard Project" },
+  { path: "/onboard-application", icon: AppWindow, label: "Onboard Application" },
   { path: "/my-users", icon: Users, label: "My Users" },
   { path: "/my-user-requests", icon: UserPlus, label: "User Requests" },
   { path: "/my-subscription", icon: CreditCard, label: "Subscription" },

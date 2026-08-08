@@ -35,7 +35,7 @@ import {
 } from "../components/ui/dropdown-menu";
 import { subscriptionsApi } from "../lib/api";
 import { toast } from "sonner";
-import { CreditCard, Search, MoreVertical, Pause, Play, XCircle, Calendar, Package } from "lucide-react";
+import { CreditCard, Search, MoreVertical, Pause, Play, XCircle, Calendar, Package, Gauge, DollarSign } from "lucide-react";
 import { format } from "date-fns";
 
 export default function SubscriptionsPage() {
@@ -46,6 +46,9 @@ export default function SubscriptionsPage() {
   const [selectedSub, setSelectedSub] = useState(null);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showApiCountDialog, setShowApiCountDialog] = useState(false);
+  const [apiCountValue, setApiCountValue] = useState("");
+  const [customPriceValue, setCustomPriceValue] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
@@ -100,6 +103,30 @@ export default function SubscriptionsPage() {
       setShowCancelDialog(false);
     } catch (error) {
       toast.error("Failed to cancel subscription");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const openApiCountDialog = (sub) => {
+    setSelectedSub(sub);
+    setApiCountValue(sub.api_count ?? "");
+    setCustomPriceValue(sub.amount ?? "");
+    setShowApiCountDialog(true);
+  };
+
+  const handleApiCountSave = async () => {
+    if (!selectedSub) return;
+    setActionLoading(true);
+    try {
+      const apiCount = apiCountValue === "" ? null : Number(apiCountValue);
+      const amount = customPriceValue === "" ? selectedSub.amount : Number(customPriceValue);
+      await subscriptionsApi.updateBillingSettings(selectedSub.id, { api_count: apiCount, amount });
+      toast.success("Billing settings updated");
+      setShowApiCountDialog(false);
+      fetchSubscriptions();
+    } catch (error) {
+      toast.error("Failed to update billing settings");
     } finally {
       setActionLoading(false);
     }
@@ -188,6 +215,7 @@ export default function SubscriptionsPage() {
                   <TableHead>Plan</TableHead>
                   <TableHead>Features</TableHead>
                   <TableHead>Amount</TableHead>
+                  <TableHead>API Count</TableHead>
                   <TableHead>Period</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-[50px]"></TableHead>
@@ -220,8 +248,18 @@ export default function SubscriptionsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className="font-semibold">${sub.amount}</span>
-                      <span className="text-muted-foreground text-xs">/{sub.billing_cycle === "monthly" ? "mo" : "yr"}</span>
+                      <div className="flex flex-col">
+                        <span className="font-semibold">${sub.billing_amount ?? sub.amount}</span>
+                        <span className="text-muted-foreground text-xs">
+                          {sub.plan_tier === "enterprise" && sub.is_per_user ? `${sub.billable_users || 0} users x $${sub.billing_unit_price ?? sub.amount}` : "subscription price"}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="sm" className="gap-2" onClick={() => openApiCountDialog(sub)}>
+                        <Gauge className="h-4 w-4" />
+                        {sub.api_count ?? "Set"}
+                      </Button>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       <div className="flex flex-col">
@@ -240,6 +278,10 @@ export default function SubscriptionsPage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => { setSelectedSub(sub); setShowDetailDialog(true); }}>
                             View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openApiCountDialog(sub)}>
+                            <Gauge className="mr-2 h-4 w-4" />
+                            Edit Billing Settings
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {sub.status === "active" && (
@@ -297,12 +339,21 @@ export default function SubscriptionsPage() {
 
               <div className="grid grid-cols-2 gap-4 pt-4 border-t">
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Amount</p>
-                  <p className="font-bold text-xl">${selectedSub.amount}<span className="text-sm font-normal text-muted-foreground">/{selectedSub.billing_cycle === "monthly" ? "month" : "year"}</span></p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Billing Amount</p>
+                  <p className="font-bold text-xl">${selectedSub.billing_amount ?? selectedSub.amount}<span className="text-sm font-normal text-muted-foreground">/{selectedSub.billing_cycle === "monthly" ? "month" : "year"}</span></p>
+                  {selectedSub.plan_tier === "enterprise" && (
+                    <p className="text-xs text-muted-foreground">
+                      {selectedSub.is_per_user ? `${selectedSub.billable_users || 0} users x $${selectedSub.billing_unit_price ?? selectedSub.amount}` : "Flat subscription price"}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Billing Cycle</p>
                   <p className="font-medium capitalize">{selectedSub.billing_cycle}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">API Count</p>
+                  <p className="font-medium">{selectedSub.api_count ?? "Not set"}</p>
                 </div>
               </div>
 
@@ -336,6 +387,53 @@ export default function SubscriptionsPage() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Billing Settings Dialog */}
+      <Dialog open={showApiCountDialog} onOpenChange={setShowApiCountDialog}>
+        <DialogContent data-testid="api-count-dialog">
+          <DialogHeader>
+            <DialogTitle>Edit Billing Settings</DialogTitle>
+            <DialogDescription>
+              Set API capacity and custom subscription price for {selectedSub?.organization_name}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">API Count</label>
+              <Input
+                type="number"
+                min="0"
+                placeholder="Leave blank for no explicit limit"
+                value={apiCountValue}
+                onChange={(event) => setApiCountValue(event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Custom Subscription Price</label>
+              <div className="relative">
+                <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  className="pl-9"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0"
+                  value={customPriceValue}
+                  onChange={(event) => setCustomPriceValue(event.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowApiCountDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleApiCountSave} disabled={actionLoading}>
+              {actionLoading ? "Saving..." : "Save Settings"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

@@ -4,8 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
-import { Textarea } from "../components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -35,14 +33,14 @@ import { Edit, Package, Plus, Search, UserPlus } from "lucide-react";
 import { format } from "date-fns";
 import { getErrorMessage } from "../lib/utils";
 import OrganizationTabs from "../components/OrganizationTabs";
+import OnboardingFormSections from "../components/OnboardingFormSections";
+import { buildInitialData, buildPayloadFromData, projectSections } from "../lib/onboardingFields";
 
 const unassignedBusinessUnit = "__unassigned__";
 
 const emptyProject = {
-  name: "",
-  code: "",
-  business_unit_id: "",
-  description: "",
+  ...buildInitialData(projectSections),
+  status: "active",
 };
 
 const getMemberName = (member) => member.name || member.user?.name || member.email?.split("@")[0] || "-";
@@ -109,10 +107,8 @@ export default function MyProjectsPage() {
   const openEditDialog = (project) => {
     setEditingProject(project);
     setFormData({
-      name: project.name || "",
-      code: project.code || "",
-      business_unit_id: project.business_unit_id || "",
-      description: project.description || "",
+      ...buildInitialData(projectSections, project),
+      status: project.status || "active",
     });
     setDialogOpen(true);
   };
@@ -121,12 +117,7 @@ export default function MyProjectsPage() {
     event.preventDefault();
     setProcessing(true);
 
-    const payload = {
-      name: formData.name.trim(),
-      code: formData.code.trim() || null,
-      business_unit_id: formData.business_unit_id || null,
-      description: formData.description.trim() || null,
-    };
+    const payload = buildPayloadFromData(projectSections, formData);
 
     try {
       if (editingProject) {
@@ -385,7 +376,7 @@ export default function MyProjectsPage() {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl">
           <DialogHeader>
             <DialogTitle>{editingProject ? "Edit Project" : "Onboard Project"}</DialogTitle>
             <DialogDescription>
@@ -393,55 +384,12 @@ export default function MyProjectsPage() {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label>Project Name</Label>
-              <Input
-                placeholder="Platform Project"
-                value={formData.name}
-                onChange={(event) => setFormData({ ...formData, name: event.target.value })}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Business Unit</Label>
-              <Select
-                value={formData.business_unit_id || unassignedBusinessUnit}
-                onValueChange={(value) =>
-                  setFormData({
-                    ...formData,
-                    business_unit_id: value === unassignedBusinessUnit ? "" : value,
-                  })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Business unit" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={unassignedBusinessUnit}>Unassigned</SelectItem>
-                  {businessUnits.map((businessUnit) => (
-                    <SelectItem key={businessUnit.id} value={businessUnit.id}>
-                      {businessUnit.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Project Code</Label>
-              <Input
-                placeholder="PLATFORM"
-                value={formData.code}
-                onChange={(event) => setFormData({ ...formData, code: event.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Description</Label>
-              <Textarea
-                placeholder="Optional notes about this project"
-                value={formData.description}
-                onChange={(event) => setFormData({ ...formData, description: event.target.value })}
-              />
-            </div>
+            <OnboardingFormSections
+              sections={projectSections}
+              formData={formData}
+              onChange={setFormData}
+              businessUnits={businessUnits}
+            />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel

@@ -18,7 +18,7 @@ import NotificationsPage from "./pages/NotificationsPage";
 import SettingsPage from "./pages/SettingsPage";
 import UpgradeRequestsPage from "./pages/UpgradeRequestsPage";
 import AdminsPage from "./pages/AdminsPage";
-import Auth0TestPage from "./pages/Auth0TestPage";
+import ZitadelTestPage from "./pages/ZitadelTestPage";
 
 // Org Admin Pages
 import MyDashboardPage from "./pages/MyDashboardPage";
@@ -31,6 +31,7 @@ import MyTeamPage from "./pages/MyTeamPage";
 import MyOrganizationPage from "./pages/MyOrganizationPage";
 import MyBusinessUnitsPage from "./pages/MyBusinessUnitsPage";
 import MyProjectsPage from "./pages/MyProjectsPage";
+import MyApplicationsPage from "./pages/MyApplicationsPage";
 import MyProjectTeamPage from "./pages/MyProjectTeamPage";
 
 // Layout
@@ -106,7 +107,7 @@ function AppRoutes() {
           <Route path="upgrade-requests" element={<SuperAdminRoute><UpgradeRequestsPage /></SuperAdminRoute>} />
           <Route path="admins" element={<SuperAdminRoute><AdminsPage /></SuperAdminRoute>} />
           <Route path="individual-requests" element={<SuperAdminRoute><IndividualRequestsPage /></SuperAdminRoute>} />
-          <Route path="auth0-test" element={<SuperAdminRoute><Auth0TestPage /></SuperAdminRoute>} />
+          <Route path="zitadel-test" element={<SuperAdminRoute><ZitadelTestPage /></SuperAdminRoute>} />
 
           {/* Org Admin */}
           <Route path="my-users" element={<OrgAdminRoute><MyUsersPage /></OrgAdminRoute>} />
@@ -118,6 +119,7 @@ function AppRoutes() {
           <Route path="my-organization" element={<OrgAdminRoute><MyOrganizationPage /></OrgAdminRoute>} />
           <Route path="onboard-bu" element={<OrgAdminRoute><MyBusinessUnitsPage /></OrgAdminRoute>} />
           <Route path="onboard-project" element={<OrgAdminRoute><MyProjectsPage /></OrgAdminRoute>} />
+          <Route path="onboard-application" element={<OrgAdminRoute><MyApplicationsPage /></OrgAdminRoute>} />
           <Route path="onboard-project/:projectId/team" element={<OrgAdminRoute><MyProjectTeamPage /></OrgAdminRoute>} />
 
           {/* Shared */}

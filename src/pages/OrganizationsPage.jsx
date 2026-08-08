@@ -39,6 +39,8 @@ import { organizationsApi, plansApi } from "../lib/api";
 import { toast } from "sonner";
 import { Building2, Search, MoreVertical, Trash2, Eye, Mail, Phone, Globe, Edit, Hash, AtSign, Plus, Layers3, Users, Package } from "lucide-react";
 import { format } from "date-fns";
+import OnboardingFormSections from "../components/OnboardingFormSections";
+import { buildInitialData, buildPayloadFromData, organizationSections } from "../lib/onboardingFields";
 
 const parseList = (value) =>
   value
@@ -48,7 +50,32 @@ const parseList = (value) =>
 
 const formatList = (value) => (Array.isArray(value) ? value.join(", ") : "");
 
+const getOrganizationPlanLabel = (org) => {
+  if (org?.plan_display) return org.plan_display;
+  if (Array.isArray(org?.active_plan_details) && org.active_plan_details.length > 0) {
+    return org.active_plan_details
+      .map((plan) => `${plan.product_name || plan.product_key || "Product"} - ${plan.plan_name || plan.plan_id}`)
+      .join(", ");
+  }
+  if (Array.isArray(org?.requested_plan_details) && org.requested_plan_details.length > 0) {
+    return org.requested_plan_details
+      .map((plan) => `${plan.product_name || "Product"} - ${plan.plan_name || plan.plan_id}`)
+      .join(", ");
+  }
+  if (Array.isArray(org?.requested_plans) && org.requested_plans.length > 0) return org.requested_plans.join(", ");
+  if (typeof org?.requested_plan === "string" && org.requested_plan !== "[]") return org.requested_plan;
+  return "No active plan";
+};
+
+const createOrganizationSections = organizationSections
+  .map((section) => ({
+    ...section,
+    fields: section.fields.filter((field) => !field.readOnly),
+  }))
+  .filter((section) => section.fields.length > 0);
+
 const emptyCreateData = {
+  ...buildInitialData(createOrganizationSections),
   name: "",
   email: "",
   domain: "",
@@ -80,8 +107,8 @@ export default function OrganizationsPage() {
   const [planCatalog, setPlanCatalog] = useState([]);
   const [loadingPlans, setLoadingPlans] = useState(false);
   const [editData, setEditData] = useState({
+    ...buildInitialData(organizationSections),
     external_org_id: "",
-    auth0_org_id: "",
     supported_domains: "",
     gateway_region: "",
     gateway_organization_name: "",
@@ -138,12 +165,16 @@ export default function OrganizationsPage() {
   };
 
   const handleCreate = async () => {
-    if (!createData.name.trim() || !createData.email.trim() || !createData.contact_person.trim()) {
-      toast.error("Organization name, email, and contact person are required");
-      return;
-    }
-    if (createData.requested_plans.length === 0) {
-      toast.error("Select at least one product plan");
+    if (
+      !createData.name.trim() ||
+      !createData.email.trim() ||
+      !createData.domain.trim() ||
+      !createData.contact_person.trim() ||
+      !createData.phone.trim() ||
+      !createData.address.trim() ||
+      !createData.description.trim()
+    ) {
+      toast.error("Organization name, email, domain, contact person, contact phone, company address, and description are required");
       return;
     }
 
@@ -154,15 +185,15 @@ export default function OrganizationsPage() {
 
     setCreating(true);
     try {
+      const organizationPayload = buildPayloadFromData(createOrganizationSections, createData);
       await organizationsApi.create({
+        ...organizationPayload,
         name: createData.name.trim(),
         email: createData.email.trim(),
         domain: createData.domain.trim() || null,
         requested_plans: requestedPlans,
         contact_person: createData.contact_person.trim(),
         phone: createData.phone.trim() || null,
-        address: createData.address.trim() || null,
-        description: createData.description.trim() || null,
         gateway_region: createData.gateway_region.trim() || null,
         gateway_organization_name: createData.gateway_organization_name.trim() || null,
         gateway_environment_type: createData.gateway_environment_type.trim() || null,
@@ -239,8 +270,15 @@ export default function OrganizationsPage() {
   const openEditDialog = (org) => {
     setSelectedOrg(org);
     setEditData({
+      ...buildInitialData(organizationSections, org),
+      email: org.email || "",
+      domain: org.domain || "",
+      contact_person: org.contact_person || "",
+      phone: org.phone || "",
+      address: org.address || "",
       external_org_id: org.external_org_id || "",
       auth0_org_id: org.auth0_org_id || "",
+      zitadel_org_id: org.zitadel_org_id || "",
       supported_domains: formatList(org.supported_domains || []),
       gateway_region: org.gateway_region || "",
       gateway_organization_name: org.gateway_organization_name || "",
@@ -308,18 +346,38 @@ export default function OrganizationsPage() {
 
   const handleSaveEdit = async () => {
     if (!selectedOrg) return;
+    if (
+      !editData.name?.trim() ||
+      !editData.email?.trim() ||
+      !editData.domain?.trim() ||
+      !editData.contact_person?.trim() ||
+      !editData.phone?.trim() ||
+      !editData.address?.trim() ||
+      !editData.description?.trim()
+    ) {
+      toast.error("Organization name, email, domain, contact person, contact phone, company address, and description are required");
+      return;
+    }
     setSaving(true);
     try {
-      // Parse supported domains from comma-separated string
       const domainsArray = editData.supported_domains
         .split(",")
         .map(d => d.trim())
         .filter(d => d.length > 0)
         .map(d => d.startsWith("@") ? d : `@${d}`);  // Ensure @ prefix
 
+      const organizationPayload = buildPayloadFromData(organizationSections, editData);
       await organizationsApi.update(selectedOrg.id, {
+        ...organizationPayload,
+        name: editData.name.trim(),
+        email: editData.email.trim(),
+        domain: editData.domain.trim() || null,
+        contact_person: editData.contact_person.trim(),
+        phone: editData.phone.trim() || null,
+        address: editData.address.trim() || null,
         external_org_id: editData.external_org_id || null,
         auth0_org_id: editData.auth0_org_id || null,
+        zitadel_org_id: editData.zitadel_org_id || null,
         supported_domains: domainsArray.length > 0 ? domainsArray : null,
         gateway_region: editData.gateway_region || null,
         gateway_organization_name: editData.gateway_organization_name || null,
@@ -459,7 +517,7 @@ export default function OrganizationsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary">{org.requested_plan}</Badge>
+                      <Badge variant="secondary">{getOrganizationPlanLabel(org)}</Badge>
                     </TableCell>
                     <TableCell>{getStatusBadge(org.status)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
@@ -501,22 +559,37 @@ export default function OrganizationsPage() {
 
       {/* Create Organization Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl" data-testid="create-org-dialog">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl" data-testid="create-org-dialog">
           <DialogHeader>
             <DialogTitle>Add Organization</DialogTitle>
             <DialogDescription>
-              Create a new organization request from the admin dashboard. Gateway fields are optional.
+              Create a new organization request with the full onboarding field mapping.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4 md:grid-cols-2">
-            <CreateInput label="Organization Name" value={createData.name} onChange={(value) => setCreateData({ ...createData, name: value })} required />
             <CreateInput label="Organization Email" type="email" value={createData.email} onChange={(value) => setCreateData({ ...createData, email: value })} required />
-            <CreateInput label="Domain" placeholder="example.com" value={createData.domain} onChange={(value) => setCreateData({ ...createData, domain: value })} />
+            <CreateInput label="Domain" placeholder="example.com" value={createData.domain} onChange={(value) => setCreateData({ ...createData, domain: value })} required />
             <CreateInput label="Contact Person" value={createData.contact_person} onChange={(value) => setCreateData({ ...createData, contact_person: value })} required />
-            <CreateInput label="Phone" value={createData.phone} onChange={(value) => setCreateData({ ...createData, phone: value })} />
+            <CreateInput label="Contact Phone" value={createData.phone} onChange={(value) => setCreateData({ ...createData, phone: value })} required />
+            <div className="space-y-2 md:col-span-2">
+              <Label>Company Address <span className="text-destructive">*</span></Label>
+              <Textarea
+                value={createData.address}
+                onChange={(e) => setCreateData({ ...createData, address: e.target.value })}
+                rows={2}
+                required
+              />
+            </div>
+            <div className="md:col-span-2">
+              <OnboardingFormSections
+                sections={createOrganizationSections}
+                formData={createData}
+                onChange={setCreateData}
+              />
+            </div>
             <div className="space-y-3 md:col-span-2">
               <div className="flex items-center justify-between gap-3">
-                <Label>Product Plans</Label>
+                <Label>Product Plans <span className="text-xs font-normal text-muted-foreground">(optional)</span></Label>
                 <Badge variant="secondary">{createData.requested_plans.length} selected</Badge>
               </div>
               {loadingPlans ? (
@@ -582,28 +655,6 @@ export default function OrganizationsPage() {
                 </div>
               )}
             </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label>Address</Label>
-              <Textarea
-                placeholder="Optional organization address"
-                value={createData.address}
-                onChange={(e) => setCreateData({ ...createData, address: e.target.value })}
-                rows={2}
-              />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label>Description</Label>
-              <Textarea
-                placeholder="Optional notes"
-                value={createData.description}
-                onChange={(e) => setCreateData({ ...createData, description: e.target.value })}
-                rows={2}
-              />
-            </div>
-            <CreateInput label="Gateway Region" placeholder="LATAM" value={createData.gateway_region} onChange={(value) => setCreateData({ ...createData, gateway_region: value })} />
-            <CreateInput label="Gateway Organization Name" placeholder="as-2" value={createData.gateway_organization_name} onChange={(value) => setCreateData({ ...createData, gateway_organization_name: value })} />
-            <CreateInput label="Environment Type" placeholder="prod or non-prod" value={createData.gateway_environment_type} onChange={(value) => setCreateData({ ...createData, gateway_environment_type: value })} />
-            <CreateInput label="Gateway Environments" placeholder="preprod, prod, staging, custom" value={createData.gateway_environments} onChange={(value) => setCreateData({ ...createData, gateway_environments: value })} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
@@ -660,7 +711,7 @@ export default function OrganizationsPage() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Plan</p>
-                  <Badge variant="secondary">{selectedOrg.requested_plan}</Badge>
+                  <Badge variant="secondary">{getOrganizationPlanLabel(selectedOrg)}</Badge>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Created</p>
@@ -678,6 +729,8 @@ export default function OrganizationsPage() {
                 </div>
               </div>
 
+              <OrganizationFieldSummary organization={selectedOrg} />
+
               {selectedOrg.rejection_reason && (
                 <div className="pt-4 border-t">
                   <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Rejection Reason</p>
@@ -694,15 +747,6 @@ export default function OrganizationsPage() {
                     <span className="text-muted-foreground">External Org ID:</span>
                     {selectedOrg.external_org_id ? (
                       <Badge variant="outline" className="font-mono">{selectedOrg.external_org_id}</Badge>
-                    ) : (
-                      <span className="text-muted-foreground italic">Not configured</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3 text-sm">
-                    <Globe className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Auth0 Org ID:</span>
-                    {selectedOrg.auth0_org_id ? (
-                      <Badge variant="outline" className="font-mono">{selectedOrg.auth0_org_id}</Badge>
                     ) : (
                       <span className="text-muted-foreground italic">Not configured</span>
                     )}
@@ -843,6 +887,11 @@ export default function OrganizationsPage() {
               Are you sure you want to delete {selectedOrg?.name}? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
+          {selectedOrg && (
+            <div className="max-h-[45vh] overflow-y-auto rounded-md border p-3">
+              <OrganizationFieldSummary organization={selectedOrg} compact />
+            </div>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
               Cancel
@@ -854,91 +903,56 @@ export default function OrganizationsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Integration Dialog */}
+      {/* Edit Organization Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent data-testid="edit-dialog">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl" data-testid="edit-dialog">
           <DialogHeader>
-            <DialogTitle>Edit Integration Settings</DialogTitle>
+            <DialogTitle>Edit Organization</DialogTitle>
             <DialogDescription>
-              Configure external app integration for {selectedOrg?.name}
+              Update the organization profile, onboarding fields, and integration settings for {selectedOrg?.name}.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="external_org_id">External Organization ID</Label>
-              <Input
-                id="external_org_id"
-                placeholder="e.g., KRE, TECHCORP, ORG123"
-                value={editData.external_org_id}
-                onChange={(e) => setEditData({ ...editData, external_org_id: e.target.value })}
-              />
-              <p className="text-xs text-muted-foreground">
-                Unique identifier used by external apps to reference this organization
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="auth0_org_id">Auth0 Organization ID</Label>
-              <Input
-                id="auth0_org_id"
-                placeholder="e.g., org_SVFows90OrYpzdIs"
-                value={editData.auth0_org_id}
-                onChange={(e) => setEditData({ ...editData, auth0_org_id: e.target.value })}
-              />
-              <p className="text-xs text-muted-foreground">
-                Auth0 organization ID (starts with org_). Get this from your Auth0 dashboard.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="supported_domains">Supported Email Domains</Label>
-              <Textarea
-                id="supported_domains"
-                placeholder="@kre.com, @probestack.io"
-                value={editData.supported_domains}
-                onChange={(e) => setEditData({ ...editData, supported_domains: e.target.value })}
-                rows={3}
-              />
-              <p className="text-xs text-muted-foreground">
-                Comma-separated list of email domains that belong to this organization (e.g., @kre.com, @probestack.io)
-              </p>
-            </div>
+          <div className="space-y-6 py-4">
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="gateway_region">Gateway Region</Label>
-                <Input
-                  id="gateway_region"
-                  placeholder="LATAM"
-                  value={editData.gateway_region}
-                  onChange={(e) => setEditData({ ...editData, gateway_region: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="gateway_organization_name">Gateway Organization Name</Label>
-                <Input
-                  id="gateway_organization_name"
-                  placeholder="as-2"
-                  value={editData.gateway_organization_name}
-                  onChange={(e) => setEditData({ ...editData, gateway_organization_name: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="gateway_environment_type">Environment Type</Label>
-                <Input
-                  id="gateway_environment_type"
-                  placeholder="prod or non-prod"
-                  value={editData.gateway_environment_type}
-                  onChange={(e) => setEditData({ ...editData, gateway_environment_type: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="gateway_environments">Gateway Environments</Label>
-                <Input
-                  id="gateway_environments"
-                  placeholder="preprod, prod, staging, custom"
-                  value={editData.gateway_environments}
-                  onChange={(e) => setEditData({ ...editData, gateway_environments: e.target.value })}
+              <CreateInput label="Organization Email" type="email" value={editData.email} onChange={(value) => setEditData({ ...editData, email: value })} required />
+              <CreateInput label="Domain" placeholder="example.com" value={editData.domain} onChange={(value) => setEditData({ ...editData, domain: value })} required />
+              <CreateInput label="Contact Person" value={editData.contact_person} onChange={(value) => setEditData({ ...editData, contact_person: value })} required />
+              <CreateInput label="Contact Phone" value={editData.phone} onChange={(value) => setEditData({ ...editData, phone: value })} required />
+              <div className="space-y-2 md:col-span-2">
+                <Label>Company Address <span className="text-destructive">*</span></Label>
+                <Textarea
+                  placeholder="Company address"
+                  value={editData.address}
+                  onChange={(e) => setEditData({ ...editData, address: e.target.value })}
+                  rows={2}
+                  required
                 />
               </div>
             </div>
+
+            <OnboardingFormSections sections={organizationSections} formData={editData} onChange={setEditData} />
+
+            <section className="space-y-3">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Integration</h3>
+              <div className="grid gap-4 md:grid-cols-2">
+                <CreateInput label="External Organization ID" placeholder="e.g., KRE, TECHCORP, ORG123" value={editData.external_org_id} onChange={(value) => setEditData({ ...editData, external_org_id: value })} />
+                <CreateInput label="Auth0 Organization ID" value={editData.auth0_org_id} onChange={(value) => setEditData({ ...editData, auth0_org_id: value })} />
+                <CreateInput label="Zitadel Organization ID" value={editData.zitadel_org_id} onChange={(value) => setEditData({ ...editData, zitadel_org_id: value })} />
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Supported Email Domains</Label>
+                  <Textarea
+                    placeholder="@kre.com, @probestack.io"
+                    value={editData.supported_domains}
+                    onChange={(e) => setEditData({ ...editData, supported_domains: e.target.value })}
+                    rows={2}
+                  />
+                </div>
+                <CreateInput label="Gateway Region" placeholder="LATAM" value={editData.gateway_region} onChange={(value) => setEditData({ ...editData, gateway_region: value })} />
+                <CreateInput label="Gateway Organization Name" placeholder="as-2" value={editData.gateway_organization_name} onChange={(value) => setEditData({ ...editData, gateway_organization_name: value })} />
+                <CreateInput label="Environment Type" placeholder="prod or non-prod" value={editData.gateway_environment_type} onChange={(value) => setEditData({ ...editData, gateway_environment_type: value })} />
+                <CreateInput label="Gateway Environments" placeholder="preprod, prod, staging, custom" value={editData.gateway_environments} onChange={(value) => setEditData({ ...editData, gateway_environments: value })} />
+              </div>
+            </section>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditDialog(false)}>
@@ -954,11 +968,50 @@ export default function OrganizationsPage() {
   );
 }
 
-function CreateInput({ label, onChange, ...props }) {
+function CreateInput({ label, onChange, required, ...props }) {
   return (
     <div className="space-y-2">
-      <Label>{label}</Label>
-      <Input {...props} onChange={(e) => onChange(e.target.value)} />
+      <Label>
+        {label}
+        {required && <span className="text-destructive"> *</span>}
+      </Label>
+      <Input {...props} required={required} onChange={(e) => onChange(e.target.value)} />
+    </div>
+  );
+}
+
+function OrganizationFieldSummary({ organization, compact = false }) {
+  if (!organization) return null;
+
+  const formatValue = (value) => {
+    if (Array.isArray(value)) return value.length ? value.join(", ") : "Not set";
+    if (typeof value === "boolean") return value ? "Yes" : "No";
+    return value || "Not set";
+  };
+
+  return (
+    <div className={compact ? "space-y-3" : "space-y-4 pt-4 border-t"}>
+      {!compact && <p className="text-xs text-muted-foreground uppercase tracking-wider">Organization Fields</p>}
+      {organizationSections.map((section) => {
+        const visibleFields = section.fields.filter((field) => {
+          const value = organization[field.key];
+          return field.readOnly || value !== null && value !== undefined && value !== "";
+        });
+        if (visibleFields.length === 0) return null;
+        return (
+          <div key={section.title} className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{section.title}</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {visibleFields.map((field) => (
+                <div key={field.key} className="min-w-0">
+                  <p className="text-xs text-muted-foreground">{field.label}</p>
+                  <p className="truncate text-sm font-medium">{formatValue(organization[field.key])}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

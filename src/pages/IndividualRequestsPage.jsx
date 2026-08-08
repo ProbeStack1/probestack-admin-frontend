@@ -61,13 +61,6 @@ const statusColors = {
   rejected: "bg-red-500/10 text-red-600 border-red-500/20",
 };
 
-// Legacy tool labels for backward compatibility with old data
-const legacyToolLabels = {
-  api_platform: "API Platform",
-  ai_agentic: "AI Agentic",
-  migration_tool: "Migration Tool",
-};
-
 export default function IndividualRequestsPage() {
   const { token } = useAuth();
   const [requests, setRequests] = useState([]);
@@ -173,9 +166,7 @@ export default function IndividualRequestsPage() {
 
   const formatTools = (tools) => {
     if (!tools || tools.length === 0) return "None";
-    // Tools are now actual tool names (e.g., "API Design Studio")
-    // For backward compatibility, check if it's an old-style tool ID
-    return tools.map((t) => legacyToolLabels[t] || t).join(", ");
+    return tools.join(", ");
   };
 
   const formatDate = (dateString) => {
