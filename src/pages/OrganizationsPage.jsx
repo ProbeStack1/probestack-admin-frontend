@@ -43,12 +43,36 @@ import OnboardingFormSections from "../components/OnboardingFormSections";
 import { buildInitialData, buildPayloadFromData, organizationSections } from "../lib/onboardingFields";
 
 const parseList = (value) =>
-  value
+  (value || "")
     .split(/[\n,]/)
     .map((item) => item.trim())
     .filter(Boolean);
 
 const formatList = (value) => (Array.isArray(value) ? value.join(", ") : "");
+
+const toList = (value) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      return parseList(value);
+    }
+    return parseList(value);
+  }
+  return [];
+};
+
+const getOrganizationTools = (org) => {
+  const explicitTools = toList(org?.requested_tools)
+    .map((tool) => (typeof tool === "string" ? tool : tool?.name || tool?.id || tool?.product_name || tool?.product_key))
+    .filter(Boolean);
+  if (explicitTools.length > 0) return explicitTools;
+  return toList(org?.active_plan_details)
+    .map((plan) => plan.product_name || plan.product_key)
+    .filter(Boolean);
+};
 
 const getOrganizationPlanLabel = (org) => {
   if (org?.plan_display) return org.plan_display;
@@ -279,11 +303,11 @@ export default function OrganizationsPage() {
       external_org_id: org.external_org_id || "",
       auth0_org_id: org.auth0_org_id || "",
       zitadel_org_id: org.zitadel_org_id || "",
-      supported_domains: formatList(org.supported_domains || []),
+      supported_domains: formatList(toList(org.supported_domains)),
       gateway_region: org.gateway_region || "",
       gateway_organization_name: org.gateway_organization_name || "",
       gateway_environment_type: org.gateway_environment_type || "",
-      gateway_environments: formatList(org.gateway_environments || []),
+      gateway_environments: formatList(toList(org.gateway_environments)),
     });
     setShowEditDialog(true);
   };
@@ -720,11 +744,14 @@ export default function OrganizationsPage() {
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Tools</p>
                   <div className="flex flex-wrap gap-1">
-                    {selectedOrg.requested_tools.map((tool) => (
+                    {getOrganizationTools(selectedOrg).map((tool) => (
                       <Badge key={tool} variant="outline" className="text-xs">
-                        {tool.replace("_", " ")}
+                        {String(tool).replace("_", " ")}
                       </Badge>
                     ))}
+                    {getOrganizationTools(selectedOrg).length === 0 && (
+                      <span className="text-sm text-muted-foreground">Not configured</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -755,9 +782,9 @@ export default function OrganizationsPage() {
                     <AtSign className="h-4 w-4 text-muted-foreground mt-0.5" />
                     <div>
                       <span className="text-muted-foreground">Supported Domains:</span>
-                      {selectedOrg.supported_domains && selectedOrg.supported_domains.length > 0 ? (
+                      {toList(selectedOrg.supported_domains).length > 0 ? (
                         <div className="flex flex-wrap gap-1 mt-1">
-                          {selectedOrg.supported_domains.map((domain) => (
+                          {toList(selectedOrg.supported_domains).map((domain) => (
                             <Badge key={domain} variant="secondary" className="font-mono text-xs">
                               {domain}
                             </Badge>
@@ -789,8 +816,8 @@ export default function OrganizationsPage() {
                   <div>
                     <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Environments</p>
                     <div className="flex flex-wrap gap-1">
-                      {(selectedOrg.gateway_environments || []).length > 0 ? (
-                        selectedOrg.gateway_environments.map((environment) => (
+                      {toList(selectedOrg.gateway_environments).length > 0 ? (
+                        toList(selectedOrg.gateway_environments).map((environment) => (
                           <Badge key={environment} variant="outline" className="text-xs">
                             {environment}
                           </Badge>
