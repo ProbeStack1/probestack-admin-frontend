@@ -28,7 +28,7 @@ import {
 } from "../components/ui/select";
 import { billingApi } from "../lib/api";
 import { toast } from "sonner";
-import { Receipt, Search, Eye, CheckCircle, XCircle, Calendar, DollarSign, Building2, RefreshCw } from "lucide-react";
+import { Receipt, Search, Eye, CheckCircle, XCircle, Calendar, DollarSign, Building2, RefreshCw, Download } from "lucide-react";
 import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 
 export default function BillingPage() {
@@ -58,23 +58,46 @@ export default function BillingPage() {
     }
   };
 
-  const handleGenerateMonthlyBills = async () => {
+  const handleGenerateAnnualBills = async () => {
     setGeneratingBills(true);
     try {
-      const response = await billingApi.generateMonthly();
-      const { bills_created, bills_skipped, total_active_subscriptions } = response.data;
-      if (bills_created > 0) {
-        toast.success(`Generated ${bills_created} new invoice(s)`);
+      const response = await billingApi.generateAnnual();
+      const { bills_created, bills_updated, bills_skipped, total_organizations } = response.data;
+      if (bills_created > 0 || bills_updated > 0) {
+        toast.success(`Prepared ${bills_created + bills_updated} annual invoice(s)`);
       } else if (bills_skipped > 0) {
-        toast.info(`All ${total_active_subscriptions} subscriptions already have invoices this month`);
+        toast.info(`No pending annual invoices needed updates for ${total_organizations} organization(s)`);
       } else {
         toast.info("No active subscriptions found");
       }
       fetchRecords();
     } catch (error) {
-      toast.error("Failed to generate monthly bills");
+      toast.error("Failed to generate annual invoices");
     } finally {
       setGeneratingBills(false);
+    }
+  };
+
+  const handleDownloadInvoice = async (record) => {
+    setActionLoading(true);
+    try {
+      const response = await billingApi.downloadInvoice(record.id);
+      const blob = new Blob([response.data], {
+        type: "application/pdf",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${record.invoice_number}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Invoice downloaded");
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to download invoice");
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -151,9 +174,9 @@ export default function BillingPage() {
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Billing</h1>
           <p className="text-muted-foreground mt-1">View billing history and manage invoices</p>
         </div>
-        <Button onClick={handleGenerateMonthlyBills} disabled={generatingBills} className="w-full sm:w-auto">
+        <Button onClick={handleGenerateAnnualBills} disabled={generatingBills} className="w-full sm:w-auto">
           <RefreshCw className={`mr-2 h-4 w-4 ${generatingBills ? 'animate-spin' : ''}`} />
-          {generatingBills ? "Generating..." : "Generate Monthly Bills"}
+          {generatingBills ? "Generating..." : "Generate Annual Invoices"}
         </Button>
       </div>
 
@@ -262,6 +285,9 @@ export default function BillingPage() {
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setSelectedRecord(record); setShowDetailDialog(true); }}>
                           <Eye className="h-4 w-4" />
                         </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => handleDownloadInvoice(record)} disabled={actionLoading} title="Download Invoice">
+                          <Download className="h-4 w-4" />
+                        </Button>
                         {record.status === "pending" && (
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-500" onClick={() => handleMarkPaid(record)} disabled={actionLoading} title="Mark as Paid">
                             <CheckCircle className="h-4 w-4" />
@@ -299,6 +325,11 @@ export default function BillingPage() {
             </div>
           )}
           <DialogFooter>
+            {selectedRecord && (
+              <Button onClick={() => handleDownloadInvoice(selectedRecord)} disabled={actionLoading} variant="outline">
+                <Download className="mr-2 h-4 w-4" />Download Invoice
+              </Button>
+            )}
             {selectedRecord?.status === "pending" && (
               <Button onClick={() => handleMarkPaid(selectedRecord)} disabled={actionLoading} className="bg-emerald-600 hover:bg-emerald-700">
                 <CheckCircle className="mr-2 h-4 w-4" />Mark as Paid

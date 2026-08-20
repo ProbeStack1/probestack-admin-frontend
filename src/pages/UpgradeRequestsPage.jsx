@@ -81,6 +81,27 @@ export default function UpgradeRequestsPage() {
 
   const pendingRequests = requests.filter((r) => r.status === "pending");
   const processedRequests = requests.filter((r) => r.status !== "pending");
+  const genericAccessToolPattern = /^(starter|enterprise|enterprise\s*-\s*plus.*)\s+access$/i;
+  const getRequestPlanLabels = (request, key, fallback) => {
+    const details = request?.[key] || [];
+    if (details.length > 0) {
+      return details.map((item) => item.display_name || [item.product_name, item.plan_name].filter(Boolean).join(" - ") || item.plan_name || item.plan_id);
+    }
+    return fallback ? [fallback] : [];
+  };
+  const getVisibleTools = (request) => {
+    const tools = request?.requested_tools || [];
+    return tools.filter((tool) => !genericAccessToolPattern.test(String(tool || "").trim()));
+  };
+  const renderPlanList = (labels, emptyText = "New product subscription") => (
+    <div className="space-y-1">
+      {labels.length > 0 ? labels.map((label) => (
+        <p key={label} className="font-medium">{label}</p>
+      )) : (
+        <p className="text-muted-foreground">{emptyText}</p>
+      )}
+    </div>
+  );
 
   return (
     <div className="space-y-6" data-testid="upgrade-requests-page">
@@ -124,13 +145,15 @@ export default function UpgradeRequestsPage() {
                           <span className="font-medium">{request.organization_name}</span>
                         </div>
                       </TableCell>
-                      <TableCell>{request.current_plan_name}</TableCell>
-                      <TableCell><span className="font-medium text-primary">{request.requested_plan_name}</span></TableCell>
+                      <TableCell>{renderPlanList(getRequestPlanLabels(request, "current_plan_details", request.current_plan_name))}</TableCell>
+                      <TableCell className="text-primary">{renderPlanList(getRequestPlanLabels(request, "requested_plans_details", request.requested_plan_name), "No requested plan")}</TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
-                          {(request.requested_tools || []).map((tool) => (
+                          {getVisibleTools(request).length > 0 ? getVisibleTools(request).map((tool) => (
                             <Badge key={tool} variant="secondary" className="text-xs">{tool.replace(/_/g, " ")}</Badge>
-                          ))}
+                          )) : (
+                            <span className="text-sm text-muted-foreground">Included plan access</span>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell className="text-muted-foreground">{format(new Date(request.created_at), "MMM d, yyyy")}</TableCell>
@@ -174,8 +197,8 @@ export default function UpgradeRequestsPage() {
                   {processedRequests.map((request) => (
                     <TableRow key={request.id}>
                       <TableCell className="font-medium">{request.organization_name}</TableCell>
-                      <TableCell>{request.current_plan_name}</TableCell>
-                      <TableCell>{request.requested_plan_name}</TableCell>
+                      <TableCell>{renderPlanList(getRequestPlanLabels(request, "current_plan_details", request.current_plan_name))}</TableCell>
+                      <TableCell>{renderPlanList(getRequestPlanLabels(request, "requested_plans_details", request.requested_plan_name), "No requested plan")}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={request.status === "approved" ? "status-approved" : "status-rejected"}>{request.status}</Badge>
                       </TableCell>
@@ -200,11 +223,11 @@ export default function UpgradeRequestsPage() {
           <div className="py-4 space-y-3">
             <div className="flex justify-between p-3 bg-muted/50 rounded-lg">
               <span className="text-muted-foreground">Current Plan:</span>
-              <span className="font-medium">{approveDialog.request?.current_plan_name}</span>
+              <div className="text-right">{renderPlanList(getRequestPlanLabels(approveDialog.request, "current_plan_details", approveDialog.request?.current_plan_name))}</div>
             </div>
             <div className="flex justify-between p-3 bg-primary/5 rounded-lg border border-primary/20">
               <span className="text-muted-foreground">New Plan:</span>
-              <span className="font-medium text-primary">{approveDialog.request?.requested_plan_name}</span>
+              <div className="text-right text-primary">{renderPlanList(getRequestPlanLabels(approveDialog.request, "requested_plans_details", approveDialog.request?.requested_plan_name), "No requested plan")}</div>
             </div>
           </div>
           <DialogFooter>

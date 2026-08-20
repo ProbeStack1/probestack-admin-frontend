@@ -102,8 +102,10 @@ export const rolesApi = {
 export const billingApi = {
   getAll: (params) => api.get("/billing", { params }),
   getById: (id) => api.get(`/billing/${id}`),
+  downloadInvoice: (id) => api.get(`/billing/${id}/invoice.pdf`, { responseType: "blob" }),
   markPaid: (id, paymentMethod) => api.post(`/billing/${id}/mark-paid`, null, { params: { payment_method: paymentMethod } }),
   markUnpaid: (id) => api.post(`/billing/${id}/mark-unpaid`),
+  generateAnnual: () => api.post("/billing/generate-annual"),
   generateMonthly: () => api.post("/billing/generate-monthly"),
 };
 

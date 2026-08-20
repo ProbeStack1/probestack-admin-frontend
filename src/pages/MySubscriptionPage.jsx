@@ -33,6 +33,18 @@ export default function MySubscriptionPage() {
     }
   };
 
+  const genericAccessToolPattern = /^(starter|enterprise|enterprise\s*-\s*plus.*)\s+access$/i;
+  const visibleTools = (tools = []) =>
+    tools.filter((tool) => !genericAccessToolPattern.test(String(tool || "").trim()));
+  const planLabels = (details = [], fallback) => {
+    if (details.length > 0) {
+      return details.map((item) =>
+        item.display_name || [item.product_name, item.plan_name].filter(Boolean).join(" - ") || item.plan_name || item.plan_id
+      );
+    }
+    return fallback ? [fallback] : [];
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -115,11 +127,13 @@ export default function MySubscriptionPage() {
                   <div className="mt-6 pt-6 border-t">
                     <p className="text-sm text-muted-foreground mb-2">Features Included</p>
                     <div className="flex flex-wrap gap-2">
-                      {(activeSub.tools || []).map((tool) => (
+                      {visibleTools(activeSub.tools || []).length > 0 ? visibleTools(activeSub.tools || []).map((tool) => (
                         <Badge key={`${activeSub.id}-${tool}`} variant="secondary">
                           {tool.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
                         </Badge>
-                      ))}
+                      )) : (
+                        <span className="text-sm text-muted-foreground">Included plan access</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -154,10 +168,17 @@ export default function MySubscriptionPage() {
                   key={req.id}
                   className="flex items-center justify-between p-4 rounded-lg bg-muted/50"
                 >
-                  <div>
-                    <p className="font-medium">
-                      {req.current_plan_name} -> {req.requested_plan_name}
-                    </p>
+                  <div className="space-y-1">
+                    {planLabels(req.current_plan_details, "").length > 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        Current: {planLabels(req.current_plan_details, "").join(", ")}
+                      </p>
+                    )}
+                    <div className="font-medium">
+                      {planLabels(req.requested_plans_details, req.requested_plan_name).map((label) => (
+                        <p key={label}>{label}</p>
+                      ))}
+                    </div>
                     <p className="text-sm text-muted-foreground">
                       Requested {format(new Date(req.created_at), "MMM d, yyyy")}
                     </p>
