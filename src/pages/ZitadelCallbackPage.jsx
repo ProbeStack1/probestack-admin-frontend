@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { api } from "../lib/api";
 
@@ -12,8 +12,9 @@ function resolveProduct() {
   return "probestack";
 }
 
+const CONSOLE_URL = process.env.REACT_APP_CONSOLE_URL || "https://console.probestack.io";
+
 export default function ZitadelCallbackPage() {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [message, setMessage] = useState("Completing sign in...");
   const [error, setError] = useState("");
@@ -45,14 +46,12 @@ export default function ZitadelCallbackPage() {
           redirect_uri: redirectUri,
         });
 
-        if (!response.data?.token) {
-          throw new Error("This Zitadel account is not linked to an active admin.");
+        if (!response.data?.success) {
+          throw new Error("Zitadel sign in did not complete.");
         }
 
-        localStorage.setItem("token", response.data.token);
-        setMessage("Signed in. Opening dashboard...");
-        window.history.replaceState(null, "", "/admin/");
-        window.location.assign("/admin/");
+        setMessage("Signed in. Opening console...");
+        window.location.replace(CONSOLE_URL);
       } catch (err) {
         setError(err.response?.data?.detail || err.message || "Failed to complete sign in.");
       }
