@@ -13,6 +13,23 @@ function resolveProduct() {
 }
 
 const CONSOLE_URL = process.env.REACT_APP_CONSOLE_URL || "https://console.probestack.io";
+const PRODUCT_URLS = {
+  probestack: process.env.REACT_APP_PROBESTACK_URL || "https://probestack.io",
+  console: CONSOLE_URL,
+  forgecatalog: process.env.REACT_APP_FORGECATALOG_URL || "https://forgecatalog.com",
+  forgefuzz: process.env.REACT_APP_FORGEFUZZ_URL || "https://forgefuzz.com",
+  local: process.env.REACT_APP_LOCAL_PRODUCT_URL || "http://localhost:3000",
+};
+
+function parseCallbackState(rawState) {
+  if (!rawState) return {};
+  try {
+    const padded = rawState.padEnd(rawState.length + ((4 - (rawState.length % 4)) % 4), "=");
+    return JSON.parse(atob(padded.replace(/-/g, "+").replace(/_/g, "/")));
+  } catch {
+    return {};
+  }
+}
 
 export default function ZitadelCallbackPage() {
   const [searchParams] = useSearchParams();
@@ -25,6 +42,9 @@ export default function ZitadelCallbackPage() {
 
   useEffect(() => {
     const code = searchParams.get("code");
+    const state = parseCallbackState(searchParams.get("state"));
+    const product = state.product || resolveProduct();
+    const returnTo = state.returnTo || state.return_to || PRODUCT_URLS[product] || CONSOLE_URL;
     const oauthError = searchParams.get("error");
     const oauthErrorDescription = searchParams.get("error_description");
 
@@ -42,7 +62,7 @@ export default function ZitadelCallbackPage() {
       try {
         const response = await api.post("/public/zitadel/auth/callback", {
           code,
-          product: resolveProduct(),
+          product,
           redirect_uri: redirectUri,
         });
 
@@ -50,8 +70,8 @@ export default function ZitadelCallbackPage() {
           throw new Error("Zitadel sign in did not complete.");
         }
 
-        setMessage("Signed in. Opening console...");
-        window.location.replace(CONSOLE_URL);
+        setMessage("Signed in. Opening product...");
+        window.location.replace(returnTo);
       } catch (err) {
         setError(err.response?.data?.detail || err.message || "Failed to complete sign in.");
       }
