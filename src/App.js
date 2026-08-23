@@ -19,6 +19,7 @@ import SettingsPage from "./pages/SettingsPage";
 import UpgradeRequestsPage from "./pages/UpgradeRequestsPage";
 import AdminsPage from "./pages/AdminsPage";
 import ZitadelTestPage from "./pages/ZitadelTestPage";
+import ZitadelCallbackPage from "./pages/ZitadelCallbackPage";
 
 // Org Admin Pages
 import MyDashboardPage from "./pages/MyDashboardPage";
@@ -90,6 +91,7 @@ function AppRoutes() {
     <Routes>
       {/* Public */}
       <Route path="login" element={<LoginPage />} />
+      <Route path="auth/zitadel/callback" element={<ZitadelCallbackPage />} />
 
       {/* Protected */}
       <Route element={<ProtectedRoute />}>
