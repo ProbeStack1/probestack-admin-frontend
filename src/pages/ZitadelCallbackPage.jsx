@@ -12,15 +12,6 @@ function resolveProduct() {
   return "probestack";
 }
 
-const CONSOLE_URL = process.env.REACT_APP_CONSOLE_URL || "https://console.probestack.io";
-const PRODUCT_URLS = {
-  probestack: process.env.REACT_APP_PROBESTACK_URL || "https://probestack.io",
-  console: CONSOLE_URL,
-  forgecatalog: process.env.REACT_APP_FORGECATALOG_URL || "https://forgecatalog.com",
-  forgefuzz: process.env.REACT_APP_FORGEFUZZ_URL || "https://forgefuzz.com",
-  local: process.env.REACT_APP_LOCAL_PRODUCT_URL || "http://localhost:3000",
-};
-
 function parseCallbackState(rawState) {
   if (!rawState) return {};
   try {
@@ -29,6 +20,11 @@ function parseCallbackState(rawState) {
   } catch {
     return {};
   }
+}
+
+function resolveCallerReturnTo(state) {
+  const returnTo = state.returnTo || state.return_to;
+  return typeof returnTo === "string" && returnTo.trim() ? returnTo.trim() : "";
 }
 
 export default function ZitadelCallbackPage() {
@@ -44,7 +40,7 @@ export default function ZitadelCallbackPage() {
     const code = searchParams.get("code");
     const state = parseCallbackState(searchParams.get("state"));
     const product = state.product || resolveProduct();
-    const returnTo = state.returnTo || state.return_to || PRODUCT_URLS[product] || CONSOLE_URL;
+    const returnTo = resolveCallerReturnTo(state);
     const oauthError = searchParams.get("error");
     const oauthErrorDescription = searchParams.get("error_description");
 
@@ -70,8 +66,13 @@ export default function ZitadelCallbackPage() {
           throw new Error("Zitadel sign in did not complete.");
         }
 
-        setMessage("Signed in. Opening product...");
-        window.location.replace(returnTo);
+        if (returnTo) {
+          setMessage("Signed in. Opening product...");
+          window.location.replace(returnTo);
+          return;
+        }
+
+        setMessage("Signed in. Return to the product to continue.");
       } catch (err) {
         setError(err.response?.data?.detail || err.message || "Failed to complete sign in.");
       }
