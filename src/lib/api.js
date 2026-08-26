@@ -5,6 +5,7 @@ const ADMIN_BASE_PATH = process.env.PUBLIC_URL || "/admin";
 
 export const api = axios.create({
   baseURL: `${BACKEND_URL}/api`,
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
