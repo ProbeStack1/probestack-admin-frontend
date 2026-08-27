@@ -23,7 +23,7 @@ import { Textarea } from "../components/ui/textarea";
 import { Label } from "../components/ui/label";
 import { organizationsApi } from "../lib/api";
 import { toast } from "sonner";
-import { Building2, Clock, Search, Eye, Check, X, Package } from "lucide-react";
+import { Building2, Clock, Search, Eye, Check, X, Package, Trash2 } from "lucide-react";
 import { cn, getErrorMessage } from "../lib/utils";
 import { format } from "date-fns";
 
@@ -34,6 +34,7 @@ export default function PendingOrganizationsPage() {
   const [selectedOrg, setSelectedOrg] = useState(null);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -83,9 +84,31 @@ export default function PendingOrganizationsPage() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!selectedOrg) return;
+    setActionLoading(true);
+    try {
+      await organizationsApi.delete(selectedOrg.id);
+      toast.success(`${selectedOrg.name} has been deleted`);
+      fetchOrganizations();
+      setShowDeleteDialog(false);
+      setShowDetailDialog(false);
+      setSelectedOrg(null);
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to delete organization request"));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const openRejectDialog = (org) => {
     setSelectedOrg(org);
     setShowRejectDialog(true);
+  };
+
+  const openDeleteDialog = (org) => {
+    setSelectedOrg(org);
+    setShowDeleteDialog(true);
   };
 
   const openDetailDialog = (org) => {
@@ -224,6 +247,16 @@ export default function PendingOrganizationsPage() {
                         >
                           <X className="h-4 w-4" />
                         </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => openDeleteDialog(org)}
+                          disabled={actionLoading}
+                          data-testid={`delete-btn-${org.id}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -323,6 +356,15 @@ export default function PendingOrganizationsPage() {
           )}
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
+              variant="outline"
+              className="text-destructive hover:text-destructive"
+              onClick={() => openDeleteDialog(selectedOrg)}
+              disabled={actionLoading}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete
+            </Button>
+            <Button
               variant="destructive"
               onClick={() => openRejectDialog(selectedOrg)}
               disabled={actionLoading}
@@ -338,6 +380,31 @@ export default function PendingOrganizationsPage() {
             >
               <Check className="mr-2 h-4 w-4" />
               Approve
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent data-testid="delete-dialog">
+          <DialogHeader>
+            <DialogTitle>Delete Organization Request</DialogTitle>
+            <DialogDescription>
+              Delete {selectedOrg?.name}? This removes the pending organization request and cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={actionLoading}
+              data-testid="confirm-delete-btn"
+            >
+              {actionLoading ? "Deleting..." : "Delete Request"}
             </Button>
           </DialogFooter>
         </DialogContent>
