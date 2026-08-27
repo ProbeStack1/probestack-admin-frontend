@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
 import {
   Table,
   TableBody,
@@ -21,15 +22,33 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 import { myOrganizationApi } from "../lib/api";
 import { toast } from "sonner";
-import { Users, Search, Trash2 } from "lucide-react";
+import { Edit, Users, Search, Trash2 } from "lucide-react";
+import { getErrorMessage } from "../lib/utils";
 
 export default function MyUsersPage() {
   const [users, setUsers] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [deleteDialog, setDeleteDialog] = useState({ open: false, user: null });
+  const [roleDialog, setRoleDialog] = useState({ open: false, user: null, roleId: "" });
 
   useEffect(() => {
     fetchUsers();
@@ -37,12 +56,28 @@ export default function MyUsersPage() {
 
   const fetchUsers = async () => {
     try {
-      const response = await myOrganizationApi.getUsers();
-      setUsers(response.data);
+      const [usersResponse, rolesResponse] = await Promise.all([
+        myOrganizationApi.getUsers(),
+        myOrganizationApi.getRoles(),
+      ]);
+      setUsers(usersResponse.data);
+      setRoles(rolesResponse.data || []);
     } catch (error) {
       toast.error("Failed to load users");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleChangeRole = async () => {
+    if (!roleDialog.user || !roleDialog.roleId) return;
+    try {
+      await myOrganizationApi.updateUserRole(roleDialog.user.id, roleDialog.roleId);
+      toast.success("User role updated");
+      fetchUsers();
+      setRoleDialog({ open: false, user: null, roleId: "" });
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to update user role"));
     }
   };
 
@@ -114,6 +149,13 @@ export default function MyUsersPage() {
                         <Badge variant="outline" className={user.status === "active" ? "status-active" : "status-inactive"}>{user.status}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setRoleDialog({ open: true, user, roleId: user.role_id || "" })}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
                         <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setDeleteDialog({ open: true, user })}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -126,6 +168,38 @@ export default function MyUsersPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={roleDialog.open} onOpenChange={(open) => setRoleDialog({ open, user: open ? roleDialog.user : null, roleId: open ? roleDialog.roleId : "" })}>
+        <DialogContent data-testid="my-user-role-dialog">
+          <DialogHeader>
+            <DialogTitle>Change User Role</DialogTitle>
+            <DialogDescription>Update the role for {roleDialog.user?.name}.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Role</Label>
+            <Select value={roleDialog.roleId} onValueChange={(roleId) => setRoleDialog({ ...roleDialog, roleId })}>
+              <SelectTrigger data-testid="my-user-role-select">
+                <SelectValue placeholder="Select role" />
+              </SelectTrigger>
+              <SelectContent>
+                {roles.map((role) => (
+                  <SelectItem key={role.id} value={role.id}>
+                    {role.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRoleDialog({ open: false, user: null, roleId: "" })}>
+              Cancel
+            </Button>
+            <Button onClick={handleChangeRole} disabled={!roleDialog.roleId}>
+              Save Role
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ open, user: null })}>
         <AlertDialogContent>

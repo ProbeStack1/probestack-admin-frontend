@@ -88,6 +88,7 @@ export const usersApi = {
   getAll: (params) => api.get("/users", { params }),
   getById: (id) => api.get(`/users/${id}`),
   create: (data) => api.post("/users", data),
+  updateRole: (id, roleId) => api.put(`/users/${id}/role`, { role_id: roleId }),
   updateStatus: (id, status) => api.put(`/users/${id}/status`, null, { params: { status } }),
   delete: (id) => api.delete(`/users/${id}`),
 };
@@ -159,6 +160,7 @@ export const myOrganizationApi = {
   
   // Users in my org
   getUsers: () => api.get("/my-organization/users"),
+  updateUserRole: (userId, roleId) => api.put(`/my-organization/users/${userId}/role`, { role_id: roleId }),
   removeUser: (userId) => api.post(`/my-organization/users/${userId}/remove`),
   
   // Organization admins for this org

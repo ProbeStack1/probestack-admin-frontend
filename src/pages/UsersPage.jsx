@@ -35,7 +35,7 @@ import {
 } from "../components/ui/dropdown-menu";
 import { usersApi, organizationsApi, rolesApi } from "../lib/api";
 import { toast } from "sonner";
-import { Users, Search, MoreVertical, UserPlus, Trash2, Ban, CheckCircle, Mail, Building2, Shield } from "lucide-react";
+import { Users, Search, MoreVertical, UserPlus, Trash2, Ban, CheckCircle, Building2, Shield, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { Label } from "../components/ui/label";
 import { getErrorMessage } from "../lib/utils";
@@ -50,6 +50,8 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showRoleDialog, setShowRoleDialog] = useState(false);
+  const [selectedRoleId, setSelectedRoleId] = useState("");
   const [formData, setFormData] = useState({
     email: "",
     name: "",
@@ -109,6 +111,24 @@ export default function UsersPage() {
       setShowDeleteDialog(false);
     } catch (error) {
       toast.error("Failed to delete user");
+    }
+  };
+
+  const openRoleDialog = (user) => {
+    setSelectedUser(user);
+    setSelectedRoleId(user.role_id || "");
+    setShowRoleDialog(true);
+  };
+
+  const handleRoleChange = async () => {
+    if (!selectedUser || !selectedRoleId) return;
+    try {
+      await usersApi.updateRole(selectedUser.id, selectedRoleId);
+      toast.success("User role updated");
+      fetchData();
+      setShowRoleDialog(false);
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to update user role"));
     }
   };
 
@@ -272,6 +292,10 @@ export default function UsersPage() {
                               Suspend
                             </DropdownMenuItem>
                           )}
+                          <DropdownMenuItem onClick={() => openRoleDialog(user)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Change Role
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             onClick={() => { setSelectedUser(user); setShowDeleteDialog(true); }}
@@ -362,6 +386,41 @@ export default function UsersPage() {
             </Button>
             <Button onClick={handleCreate} data-testid="save-user-btn">
               Add User
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Role Dialog */}
+      <Dialog open={showRoleDialog} onOpenChange={setShowRoleDialog}>
+        <DialogContent data-testid="change-role-dialog">
+          <DialogHeader>
+            <DialogTitle>Change User Role</DialogTitle>
+            <DialogDescription>
+              Update the product role for {selectedUser?.name}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Role</Label>
+            <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
+              <SelectTrigger data-testid="change-user-role-select">
+                <SelectValue placeholder="Select role" />
+              </SelectTrigger>
+              <SelectContent>
+                {getAvailableRoles(selectedUser?.organization_id).map((role) => (
+                  <SelectItem key={role.id} value={role.id}>
+                    {role.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRoleDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleRoleChange} disabled={!selectedRoleId} data-testid="confirm-change-role-btn">
+              Save Role
             </Button>
           </DialogFooter>
         </DialogContent>
