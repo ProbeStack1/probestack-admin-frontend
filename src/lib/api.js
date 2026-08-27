@@ -89,6 +89,8 @@ export const usersApi = {
   getById: (id) => api.get(`/users/${id}`),
   create: (data) => api.post("/users", data),
   updateRole: (id, roleIds) => api.put(`/users/${id}/role`, { role_ids: Array.isArray(roleIds) ? roleIds : [roleIds] }),
+  addRole: (id, roleId) => api.post(`/users/${id}/roles/${roleId}`),
+  deleteRole: (id, roleId) => api.delete(`/users/${id}/roles/${roleId}`),
   updateStatus: (id, status) => api.put(`/users/${id}/status`, null, { params: { status } }),
   delete: (id) => api.delete(`/users/${id}`),
 };
@@ -161,6 +163,8 @@ export const myOrganizationApi = {
   // Users in my org
   getUsers: () => api.get("/my-organization/users"),
   updateUserRole: (userId, roleIds) => api.put(`/my-organization/users/${userId}/role`, { role_ids: Array.isArray(roleIds) ? roleIds : [roleIds] }),
+  addUserRole: (userId, roleId) => api.post(`/my-organization/users/${userId}/roles/${roleId}`),
+  deleteUserRole: (userId, roleId) => api.delete(`/my-organization/users/${userId}/roles/${roleId}`),
   removeUser: (userId) => api.post(`/my-organization/users/${userId}/remove`),
   
   // Organization admins for this org

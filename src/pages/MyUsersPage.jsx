@@ -30,10 +30,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../components/ui/dialog";
-import { Checkbox } from "../components/ui/checkbox";
 import { myOrganizationApi } from "../lib/api";
 import { toast } from "sonner";
-import { Edit, Users, Search, Trash2 } from "lucide-react";
+import { Edit, Users, Search, Trash2, Plus } from "lucide-react";
 import { getErrorMessage } from "../lib/utils";
 
 export default function MyUsersPage() {
@@ -108,13 +107,24 @@ export default function MyUsersPage() {
     return user?.role_name ? [user.role_name] : [];
   };
 
-  const toggleDialogRole = (roleId) => {
+  const addDialogRole = (roleId) => {
     setRoleDialog((current) => ({
       ...current,
-      roleIds: current.roleIds.includes(roleId)
-        ? current.roleIds.filter((id) => id !== roleId)
-        : [...current.roleIds, roleId],
+      roleIds: current.roleIds.includes(roleId) ? current.roleIds : [...current.roleIds, roleId],
     }));
+  };
+
+  const removeDialogRole = (roleId) => {
+    setRoleDialog((current) => {
+      if (current.roleIds.length <= 1) {
+        toast.error("A user must have at least one role");
+        return current;
+      }
+      return {
+        ...current,
+        roleIds: current.roleIds.filter((id) => id !== roleId),
+      };
+    });
   };
 
   return (
@@ -201,29 +211,64 @@ export default function MyUsersPage() {
             <DialogDescription>Add or remove roles for {roleDialog.user?.name}.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <Label>Roles</Label>
-            <div className="max-h-72 space-y-2 overflow-y-auto rounded-md border p-3" data-testid="my-user-role-list">
-              {roles.map((role) => {
-                const checked = roleDialog.roleIds.includes(role.id);
-                return (
-                  <label
-                    key={role.id}
-                    className="flex cursor-pointer items-start gap-3 rounded-md px-2 py-2 hover:bg-muted"
-                  >
-                    <Checkbox
-                      checked={checked}
-                      onCheckedChange={() => toggleDialogRole(role.id)}
-                      data-testid={`my-user-role-checkbox-${role.id}`}
-                    />
-                    <span className="min-w-0">
-                      <span className="block text-sm font-medium leading-none">{role.name}</span>
-                      {role.description && (
-                        <span className="mt-1 block text-xs text-muted-foreground">{role.description}</span>
-                      )}
-                    </span>
-                  </label>
-                );
-              })}
+            <div className="space-y-2">
+              <Label>Assigned Roles</Label>
+              <div className="space-y-2 rounded-md border p-3" data-testid="my-assigned-user-role-list">
+                {roles
+                  .filter((role) => roleDialog.roleIds.includes(role.id))
+                  .map((role) => (
+                    <div key={role.id} className="flex items-start justify-between gap-3 rounded-md px-2 py-2">
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium leading-none">{role.name}</span>
+                        {role.description && (
+                          <span className="mt-1 block text-xs text-muted-foreground">{role.description}</span>
+                        )}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0 text-destructive hover:text-destructive"
+                        onClick={() => removeDialogRole(role.id)}
+                        disabled={roleDialog.roleIds.length <= 1}
+                        data-testid={`my-remove-user-role-${role.id}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Remove role</span>
+                      </Button>
+                    </div>
+                  ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Available Roles</Label>
+              <div className="max-h-56 space-y-2 overflow-y-auto rounded-md border p-3" data-testid="my-available-user-role-list">
+                {roles.filter((role) => !roleDialog.roleIds.includes(role.id)).length === 0 ? (
+                  <p className="px-2 py-3 text-sm text-muted-foreground">All available roles are assigned.</p>
+                ) : (
+                  roles
+                    .filter((role) => !roleDialog.roleIds.includes(role.id))
+                    .map((role) => (
+                      <div key={role.id} className="flex items-start justify-between gap-3 rounded-md px-2 py-2 hover:bg-muted">
+                        <span className="min-w-0">
+                          <span className="block text-sm font-medium leading-none">{role.name}</span>
+                          {role.description && (
+                            <span className="mt-1 block text-xs text-muted-foreground">{role.description}</span>
+                          )}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="shrink-0"
+                          onClick={() => addDialogRole(role.id)}
+                          data-testid={`my-add-user-role-${role.id}`}
+                        >
+                          <Plus className="mr-1 h-3.5 w-3.5" />
+                          Add
+                        </Button>
+                      </div>
+                    ))
+                )}
+              </div>
             </div>
           </div>
           <DialogFooter>
