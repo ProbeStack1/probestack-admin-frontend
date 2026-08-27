@@ -30,13 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../components/ui/select";
+import { Checkbox } from "../components/ui/checkbox";
 import { myOrganizationApi } from "../lib/api";
 import { toast } from "sonner";
 import { Edit, Users, Search, Trash2 } from "lucide-react";
@@ -48,7 +42,7 @@ export default function MyUsersPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [deleteDialog, setDeleteDialog] = useState({ open: false, user: null });
-  const [roleDialog, setRoleDialog] = useState({ open: false, user: null, roleId: "" });
+  const [roleDialog, setRoleDialog] = useState({ open: false, user: null, roleIds: [] });
 
   useEffect(() => {
     fetchUsers();
@@ -70,14 +64,14 @@ export default function MyUsersPage() {
   };
 
   const handleChangeRole = async () => {
-    if (!roleDialog.user || !roleDialog.roleId) return;
+    if (!roleDialog.user || roleDialog.roleIds.length === 0) return;
     try {
-      await myOrganizationApi.updateUserRole(roleDialog.user.id, roleDialog.roleId);
-      toast.success("User role updated");
+      await myOrganizationApi.updateUserRole(roleDialog.user.id, roleDialog.roleIds);
+      toast.success("User roles updated");
       fetchUsers();
-      setRoleDialog({ open: false, user: null, roleId: "" });
+      setRoleDialog({ open: false, user: null, roleIds: [] });
     } catch (error) {
-      toast.error(getErrorMessage(error, "Failed to update user role"));
+      toast.error(getErrorMessage(error, "Failed to update user roles"));
     }
   };
 
@@ -99,6 +93,29 @@ export default function MyUsersPage() {
       user.name.toLowerCase().includes(search.toLowerCase()) ||
       user.email.toLowerCase().includes(search.toLowerCase())
   );
+
+  const getAssignedRoleIds = (user) => {
+    if (Array.isArray(user?.role_ids) && user.role_ids.length > 0) {
+      return user.role_ids;
+    }
+    return user?.role_id ? [user.role_id] : [];
+  };
+
+  const getAssignedRoleNames = (user) => {
+    if (Array.isArray(user?.role_names) && user.role_names.length > 0) {
+      return user.role_names;
+    }
+    return user?.role_name ? [user.role_name] : [];
+  };
+
+  const toggleDialogRole = (roleId) => {
+    setRoleDialog((current) => ({
+      ...current,
+      roleIds: current.roleIds.includes(roleId)
+        ? current.roleIds.filter((id) => id !== roleId)
+        : [...current.roleIds, roleId],
+    }));
+  };
 
   return (
     <div className="space-y-6" data-testid="my-users-page">
@@ -144,7 +161,15 @@ export default function MyUsersPage() {
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.name}</TableCell>
                       <TableCell>{user.email}</TableCell>
-                      <TableCell>{user.role_name}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1.5">
+                          {getAssignedRoleNames(user).map((roleName) => (
+                            <Badge key={roleName} variant="secondary" className="max-w-[220px]">
+                              <span className="truncate">{roleName}</span>
+                            </Badge>
+                          ))}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={user.status === "active" ? "status-active" : "status-inactive"}>{user.status}</Badge>
                       </TableCell>
@@ -152,7 +177,7 @@ export default function MyUsersPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => setRoleDialog({ open: true, user, roleId: user.role_id || "" })}
+                          onClick={() => setRoleDialog({ open: true, user, roleIds: getAssignedRoleIds(user) })}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -169,33 +194,44 @@ export default function MyUsersPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={roleDialog.open} onOpenChange={(open) => setRoleDialog({ open, user: open ? roleDialog.user : null, roleId: open ? roleDialog.roleId : "" })}>
+      <Dialog open={roleDialog.open} onOpenChange={(open) => setRoleDialog({ open, user: open ? roleDialog.user : null, roleIds: open ? roleDialog.roleIds : [] })}>
         <DialogContent data-testid="my-user-role-dialog">
           <DialogHeader>
-            <DialogTitle>Change User Role</DialogTitle>
-            <DialogDescription>Update the role for {roleDialog.user?.name}.</DialogDescription>
+            <DialogTitle>Manage User Roles</DialogTitle>
+            <DialogDescription>Add or remove roles for {roleDialog.user?.name}.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
-            <Label>Role</Label>
-            <Select value={roleDialog.roleId} onValueChange={(roleId) => setRoleDialog({ ...roleDialog, roleId })}>
-              <SelectTrigger data-testid="my-user-role-select">
-                <SelectValue placeholder="Select role" />
-              </SelectTrigger>
-              <SelectContent>
-                {roles.map((role) => (
-                  <SelectItem key={role.id} value={role.id}>
-                    {role.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="space-y-3">
+            <Label>Roles</Label>
+            <div className="max-h-72 space-y-2 overflow-y-auto rounded-md border p-3" data-testid="my-user-role-list">
+              {roles.map((role) => {
+                const checked = roleDialog.roleIds.includes(role.id);
+                return (
+                  <label
+                    key={role.id}
+                    className="flex cursor-pointer items-start gap-3 rounded-md px-2 py-2 hover:bg-muted"
+                  >
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={() => toggleDialogRole(role.id)}
+                      data-testid={`my-user-role-checkbox-${role.id}`}
+                    />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium leading-none">{role.name}</span>
+                      {role.description && (
+                        <span className="mt-1 block text-xs text-muted-foreground">{role.description}</span>
+                      )}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRoleDialog({ open: false, user: null, roleId: "" })}>
+            <Button variant="outline" onClick={() => setRoleDialog({ open: false, user: null, roleIds: [] })}>
               Cancel
             </Button>
-            <Button onClick={handleChangeRole} disabled={!roleDialog.roleId}>
-              Save Role
+            <Button onClick={handleChangeRole} disabled={roleDialog.roleIds.length === 0}>
+              Save Roles
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -38,6 +38,7 @@ import { toast } from "sonner";
 import { Users, Search, MoreVertical, UserPlus, Trash2, Ban, CheckCircle, Building2, Shield, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { Label } from "../components/ui/label";
+import { Checkbox } from "../components/ui/checkbox";
 import { getErrorMessage } from "../lib/utils";
 
 export default function UsersPage() {
@@ -51,7 +52,7 @@ export default function UsersPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showRoleDialog, setShowRoleDialog] = useState(false);
-  const [selectedRoleId, setSelectedRoleId] = useState("");
+  const [selectedRoleIds, setSelectedRoleIds] = useState([]);
   const [formData, setFormData] = useState({
     email: "",
     name: "",
@@ -116,19 +117,19 @@ export default function UsersPage() {
 
   const openRoleDialog = (user) => {
     setSelectedUser(user);
-    setSelectedRoleId(user.role_id || "");
+    setSelectedRoleIds(getAssignedRoleIds(user));
     setShowRoleDialog(true);
   };
 
   const handleRoleChange = async () => {
-    if (!selectedUser || !selectedRoleId) return;
+    if (!selectedUser || selectedRoleIds.length === 0) return;
     try {
-      await usersApi.updateRole(selectedUser.id, selectedRoleId);
-      toast.success("User role updated");
+      await usersApi.updateRole(selectedUser.id, selectedRoleIds);
+      toast.success("User roles updated");
       fetchData();
       setShowRoleDialog(false);
     } catch (error) {
-      toast.error(getErrorMessage(error, "Failed to update user role"));
+      toast.error(getErrorMessage(error, "Failed to update user roles"));
     }
   };
 
@@ -165,6 +166,28 @@ export default function UsersPage() {
           return roleMap;
         }, new Map())
         .values()
+    );
+  };
+
+  const getAssignedRoleIds = (user) => {
+    if (Array.isArray(user?.role_ids) && user.role_ids.length > 0) {
+      return user.role_ids;
+    }
+    return user?.role_id ? [user.role_id] : [];
+  };
+
+  const getAssignedRoleNames = (user) => {
+    if (Array.isArray(user?.role_names) && user.role_names.length > 0) {
+      return user.role_names;
+    }
+    return user?.role_name ? [user.role_name] : [];
+  };
+
+  const toggleSelectedRole = (roleId) => {
+    setSelectedRoleIds((current) =>
+      current.includes(roleId)
+        ? current.filter((id) => id !== roleId)
+        : [...current, roleId]
     );
   };
 
@@ -263,10 +286,14 @@ export default function UsersPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary">
-                        <Shield className="mr-1 h-3 w-3" />
-                        {user.role_name}
-                      </Badge>
+                      <div className="flex flex-wrap gap-1.5">
+                        {getAssignedRoleNames(user).map((roleName) => (
+                          <Badge key={roleName} variant="secondary" className="max-w-[220px]">
+                            <Shield className="mr-1 h-3 w-3 shrink-0" />
+                            <span className="truncate">{roleName}</span>
+                          </Badge>
+                        ))}
+                      </div>
                     </TableCell>
                     <TableCell>{getStatusBadge(user.status)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
@@ -294,7 +321,7 @@ export default function UsersPage() {
                           )}
                           <DropdownMenuItem onClick={() => openRoleDialog(user)}>
                             <Edit className="mr-2 h-4 w-4" />
-                            Change Role
+                            Manage Roles
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
@@ -392,35 +419,55 @@ export default function UsersPage() {
       </Dialog>
 
       {/* Change Role Dialog */}
-      <Dialog open={showRoleDialog} onOpenChange={setShowRoleDialog}>
+      <Dialog
+        open={showRoleDialog}
+        onOpenChange={(open) => {
+          setShowRoleDialog(open);
+          if (!open) {
+            setSelectedUser(null);
+            setSelectedRoleIds([]);
+          }
+        }}
+      >
         <DialogContent data-testid="change-role-dialog">
           <DialogHeader>
-            <DialogTitle>Change User Role</DialogTitle>
+            <DialogTitle>Manage User Roles</DialogTitle>
             <DialogDescription>
-              Update the product role for {selectedUser?.name}.
+              Add or remove product roles for {selectedUser?.name}.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
-            <Label>Role</Label>
-            <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
-              <SelectTrigger data-testid="change-user-role-select">
-                <SelectValue placeholder="Select role" />
-              </SelectTrigger>
-              <SelectContent>
-                {getAvailableRoles(selectedUser?.organization_id).map((role) => (
-                  <SelectItem key={role.id} value={role.id}>
-                    {role.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="space-y-3">
+            <Label>Roles</Label>
+            <div className="max-h-72 space-y-2 overflow-y-auto rounded-md border p-3" data-testid="change-user-role-list">
+              {getAvailableRoles(selectedUser?.organization_id).map((role) => {
+                const checked = selectedRoleIds.includes(role.id);
+                return (
+                  <label
+                    key={role.id}
+                    className="flex cursor-pointer items-start gap-3 rounded-md px-2 py-2 hover:bg-muted"
+                  >
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={() => toggleSelectedRole(role.id)}
+                      data-testid={`change-user-role-checkbox-${role.id}`}
+                    />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium leading-none">{role.name}</span>
+                      {role.description && (
+                        <span className="mt-1 block text-xs text-muted-foreground">{role.description}</span>
+                      )}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowRoleDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={handleRoleChange} disabled={!selectedRoleId} data-testid="confirm-change-role-btn">
-              Save Role
+            <Button onClick={handleRoleChange} disabled={selectedRoleIds.length === 0} data-testid="confirm-change-role-btn">
+              Save Roles
             </Button>
           </DialogFooter>
         </DialogContent>
