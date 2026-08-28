@@ -47,8 +47,9 @@ export default function SubscriptionsPage() {
   const [selectedSub, setSelectedSub] = useState(null);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
-  const [showApiCountDialog, setShowApiCountDialog] = useState(false);
-  const [apiCountValue, setApiCountValue] = useState("");
+  const [showQuotaDialog, setShowQuotaDialog] = useState(false);
+  const [quotaValue, setQuotaValue] = useState("");
+  const [usedQuotaValue, setUsedQuotaValue] = useState("");
   const [customPriceValue, setCustomPriceValue] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -109,22 +110,24 @@ export default function SubscriptionsPage() {
     }
   };
 
-  const openApiCountDialog = (sub) => {
+  const openQuotaDialog = (sub) => {
     setSelectedSub(sub);
-    setApiCountValue(sub.api_count ?? "");
+    setQuotaValue(sub.quota ?? sub.api_count ?? "");
+    setUsedQuotaValue(sub.used_quota ?? "");
     setCustomPriceValue(sub.amount ?? "");
-    setShowApiCountDialog(true);
+    setShowQuotaDialog(true);
   };
 
-  const handleApiCountSave = async () => {
+  const handleQuotaSave = async () => {
     if (!selectedSub) return;
     setActionLoading(true);
     try {
-      const apiCount = apiCountValue === "" ? null : Number(apiCountValue);
+      const quota = quotaValue === "" ? null : Number(quotaValue);
+      const usedQuota = usedQuotaValue === "" ? null : Number(usedQuotaValue);
       const amount = customPriceValue === "" ? selectedSub.amount : Number(customPriceValue);
-      await subscriptionsApi.updateBillingSettings(selectedSub.id, { api_count: apiCount, amount });
+      await subscriptionsApi.updateBillingSettings(selectedSub.id, { quota, used_quota: usedQuota, amount });
       toast.success("Billing settings updated");
-      setShowApiCountDialog(false);
+      setShowQuotaDialog(false);
       fetchSubscriptions();
     } catch (error) {
       toast.error("Failed to update billing settings");
@@ -217,7 +220,7 @@ export default function SubscriptionsPage() {
                   <TableHead>Plan</TableHead>
                   <TableHead>Features</TableHead>
                   <TableHead>Amount</TableHead>
-                  <TableHead>API Count</TableHead>
+                  <TableHead>Quota</TableHead>
                   <TableHead>Period</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-[50px]"></TableHead>
@@ -258,10 +261,13 @@ export default function SubscriptionsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="sm" className="gap-2" onClick={() => openApiCountDialog(sub)}>
+                      <Button variant="ghost" size="sm" className="gap-2" onClick={() => openQuotaDialog(sub)}>
                         <Gauge className="h-4 w-4" />
-                        {sub.api_count ?? "Set"}
+                        {sub.quota ?? sub.api_count ?? "Set"}
                       </Button>
+                      {sub.remaining_quota !== undefined && sub.remaining_quota !== null && (
+                        <p className="mt-1 text-xs text-muted-foreground">{sub.remaining_quota} remaining</p>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       <div className="flex flex-col">
@@ -281,7 +287,7 @@ export default function SubscriptionsPage() {
                           <DropdownMenuItem onClick={() => { setSelectedSub(sub); setShowDetailDialog(true); }}>
                             View Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => openApiCountDialog(sub)}>
+                          <DropdownMenuItem onClick={() => openQuotaDialog(sub)}>
                             <Gauge className="mr-2 h-4 w-4" />
                             Edit Billing Settings
                           </DropdownMenuItem>
@@ -355,8 +361,12 @@ export default function SubscriptionsPage() {
                   <p className="font-medium capitalize">{selectedSub.billing_cycle}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">API Count</p>
-                  <p className="font-medium">{selectedSub.api_count ?? "Not set"}</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Quota</p>
+                  <p className="font-medium">{selectedSub.quota ?? selectedSub.api_count ?? "Not set"}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Used {selectedSub.used_quota ?? 0}
+                    {selectedSub.remaining_quota !== undefined && selectedSub.remaining_quota !== null ? `, ${selectedSub.remaining_quota} remaining` : ""}
+                  </p>
                 </div>
               </div>
 
@@ -394,23 +404,33 @@ export default function SubscriptionsPage() {
       </Dialog>
 
       {/* Billing Settings Dialog */}
-      <Dialog open={showApiCountDialog} onOpenChange={setShowApiCountDialog}>
-        <DialogContent data-testid="api-count-dialog">
+      <Dialog open={showQuotaDialog} onOpenChange={setShowQuotaDialog}>
+        <DialogContent data-testid="quota-dialog">
           <DialogHeader>
             <DialogTitle>Edit Billing Settings</DialogTitle>
             <DialogDescription>
-              Set API capacity and custom subscription price for {selectedSub?.organization_name}.
+              Set product quota, usage, and custom subscription price for {selectedSub?.organization_name}.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">API Count</label>
+              <label className="text-sm font-medium">Quota</label>
               <Input
                 type="number"
                 min="0"
                 placeholder="Leave blank for no explicit limit"
-                value={apiCountValue}
-                onChange={(event) => setApiCountValue(event.target.value)}
+                value={quotaValue}
+                onChange={(event) => setQuotaValue(event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Used Quota</label>
+              <Input
+                type="number"
+                min="0"
+                placeholder="0"
+                value={usedQuotaValue}
+                onChange={(event) => setUsedQuotaValue(event.target.value)}
               />
             </div>
             <div className="space-y-2">
@@ -430,10 +450,10 @@ export default function SubscriptionsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowApiCountDialog(false)}>
+            <Button variant="outline" onClick={() => setShowQuotaDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={handleApiCountSave} disabled={actionLoading}>
+            <Button onClick={handleQuotaSave} disabled={actionLoading}>
               {actionLoading ? "Saving..." : "Save Settings"}
             </Button>
           </DialogFooter>

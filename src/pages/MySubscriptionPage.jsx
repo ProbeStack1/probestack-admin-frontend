@@ -119,9 +119,13 @@ export default function MySubscriptionPage() {
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Gauge className="h-4 w-4" />
-                        <span className="text-sm">API Count</span>
+                        <span className="text-sm">Quota</span>
                       </div>
-                      <p className="text-xl font-bold">{activeSub.api_count ?? "Not set"}</p>
+                      <p className="text-xl font-bold">{activeSub.quota ?? activeSub.api_count ?? "Not set"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Used {activeSub.used_quota ?? 0}
+                        {activeSub.remaining_quota !== undefined && activeSub.remaining_quota !== null ? `, ${activeSub.remaining_quota} remaining` : ""}
+                      </p>
                     </div>
                   </div>
                   <div className="mt-6 pt-6 border-t">
