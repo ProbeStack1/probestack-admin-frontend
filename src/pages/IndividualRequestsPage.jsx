@@ -52,6 +52,7 @@ import {
   Package,
   RefreshCw,
 } from "lucide-react";
+import PaginationControls, { usePagination } from "../components/PaginationControls";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -188,6 +189,7 @@ export default function IndividualRequestsPage() {
     const matchesStatus = statusFilter === "all" || req.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+  const requestsPagination = usePagination(filteredRequests);
 
   const pendingCount = requests.filter((r) => r.status === "pending").length;
 
@@ -307,7 +309,7 @@ export default function IndividualRequestsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredRequests.map((request) => (
+                  {requestsPagination.pageItems.map((request) => (
                     <TableRow key={request.id} data-testid={`request-row-${request.id}`}>
                       <TableCell className="font-medium">{request.name}</TableCell>
                       <TableCell>{request.email}</TableCell>
@@ -381,6 +383,7 @@ export default function IndividualRequestsPage() {
               </Table>
             </div>
           )}
+          <PaginationControls {...requestsPagination} onPageChange={requestsPagination.setPage} />
         </CardContent>
       </Card>
 

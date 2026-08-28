@@ -48,6 +48,7 @@ import { toast } from "sonner";
 import { UserCog, Plus, Search, Trash2, ToggleLeft, ToggleRight, Building2, MoreVertical, Key, Eye, EyeOff } from "lucide-react";
 import { format } from "date-fns";
 import { getErrorMessage } from "../lib/utils";
+import PaginationControls, { usePagination } from "../components/PaginationControls";
 
 export default function AdminsPage() {
   const [admins, setAdmins] = useState([]);
@@ -167,6 +168,8 @@ export default function AdminsPage() {
 
   const superAdmins = filteredAdmins.filter((a) => a.role === "super_admin");
   const orgAdmins = filteredAdmins.filter((a) => a.role === "org_admin");
+  const superAdminsPagination = usePagination(superAdmins);
+  const orgAdminsPagination = usePagination(orgAdmins);
 
   return (
     <div className="space-y-6" data-testid="admins-page">
@@ -220,7 +223,7 @@ export default function AdminsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {superAdmins.map((admin) => (
+                  {superAdminsPagination.pageItems.map((admin) => (
                     <TableRow key={admin.id}>
                       <TableCell className="font-medium">{admin.name}</TableCell>
                       <TableCell>{admin.email}</TableCell>
@@ -238,6 +241,7 @@ export default function AdminsPage() {
               </Table>
             </div>
           )}
+          <PaginationControls {...superAdminsPagination} onPageChange={superAdminsPagination.setPage} />
         </CardContent>
       </Card>
 
@@ -273,7 +277,7 @@ export default function AdminsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {orgAdmins.map((admin) => (
+                  {orgAdminsPagination.pageItems.map((admin) => (
                     <TableRow key={admin.id}>
                       <TableCell className="font-medium">{admin.name}</TableCell>
                       <TableCell>{admin.email}</TableCell>
@@ -335,6 +339,7 @@ export default function AdminsPage() {
               </Table>
             </div>
           )}
+          <PaginationControls {...orgAdminsPagination} onPageChange={orgAdminsPagination.setPage} />
         </CardContent>
       </Card>
 

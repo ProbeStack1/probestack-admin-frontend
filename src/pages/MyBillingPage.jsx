@@ -13,10 +13,12 @@ import { myOrganizationApi } from "../lib/api";
 import { toast } from "sonner";
 import { Receipt, DollarSign, Clock, CheckCircle } from "lucide-react";
 import { format } from "date-fns";
+import PaginationControls, { usePagination } from "../components/PaginationControls";
 
 export default function MyBillingPage() {
   const [billingRecords, setBillingRecords] = useState([]);
   const [loading, setLoading] = useState(true);
+  const billingPagination = usePagination(billingRecords);
 
   useEffect(() => {
     fetchBilling();
@@ -123,7 +125,7 @@ export default function MyBillingPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {billingRecords.map((record) => (
+                  {billingPagination.pageItems.map((record) => (
                     <TableRow key={record.id}>
                       <TableCell className="font-mono text-sm">
                         {record.invoice_number}
@@ -162,6 +164,7 @@ export default function MyBillingPage() {
               </Table>
             </div>
           )}
+          <PaginationControls {...billingPagination} onPageChange={billingPagination.setPage} />
         </CardContent>
       </Card>
     </div>

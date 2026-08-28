@@ -36,6 +36,7 @@ import { Users, Plus, Search, Trash2, ToggleLeft, ToggleRight, UserCog } from "l
 import { format } from "date-fns";
 import { useAuth } from "../context/AuthContext";
 import { getErrorMessage } from "../lib/utils";
+import PaginationControls, { usePagination } from "../components/PaginationControls";
 
 export default function MyTeamPage() {
   const { admin } = useAuth();
@@ -119,6 +120,7 @@ export default function MyTeamPage() {
       member.name.toLowerCase().includes(search.toLowerCase()) ||
       member.email.toLowerCase().includes(search.toLowerCase())
   );
+  const membersPagination = usePagination(filteredMembers);
 
   return (
     <div className="space-y-6" data-testid="my-team-page">
@@ -193,7 +195,7 @@ export default function MyTeamPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredMembers.map((member) => (
+                  {membersPagination.pageItems.map((member) => (
                     <TableRow key={member.id}>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
@@ -245,6 +247,7 @@ export default function MyTeamPage() {
               </Table>
             </div>
           )}
+          <PaginationControls {...membersPagination} onPageChange={membersPagination.setPage} />
         </CardContent>
       </Card>
 

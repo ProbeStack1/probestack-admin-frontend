@@ -39,6 +39,7 @@ import { Users, Search, MoreVertical, UserPlus, Trash2, Ban, CheckCircle, Buildi
 import { format } from "date-fns";
 import { Label } from "../components/ui/label";
 import { getErrorMessage } from "../lib/utils";
+import PaginationControls, { usePagination } from "../components/PaginationControls";
 
 export default function UsersPage() {
   const [users, setUsers] = useState([]);
@@ -138,6 +139,7 @@ export default function UsersPage() {
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.organization_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  const usersPagination = usePagination(filteredUsers);
 
   const getStatusBadge = (status) => {
     const classes = {
@@ -271,7 +273,7 @@ export default function UsersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredUsers.map((user) => (
+                {usersPagination.pageItems.map((user) => (
                   <TableRow key={user.id} data-testid={`user-row-${user.id}`}>
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -346,6 +348,7 @@ export default function UsersPage() {
               </TableBody>
             </Table>
           )}
+          <PaginationControls {...usersPagination} onPageChange={usersPagination.setPage} />
         </CardContent>
       </Card>
 

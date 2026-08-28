@@ -19,6 +19,7 @@ import OrganizationTabs from "../components/OrganizationTabs";
 import OnboardingFormSections from "../components/OnboardingFormSections";
 import { applicationSections, buildInitialData, buildPayloadFromData } from "../lib/onboardingFields";
 import { getErrorMessage } from "../lib/utils";
+import PaginationControls, { usePagination } from "../components/PaginationControls";
 
 const allProjectsValue = "__all_projects__";
 
@@ -114,6 +115,7 @@ export default function MyApplicationsPage() {
       .toLowerCase()
       .includes(term);
   });
+  const applicationsPagination = usePagination(filteredApplications);
 
   return (
     <div className="space-y-6" data-testid="my-applications-page">
@@ -178,7 +180,7 @@ export default function MyApplicationsPage() {
             </div>
           ) : (
             <div className="grid gap-4 lg:grid-cols-2">
-              {filteredApplications.map((application) => (
+              {applicationsPagination.pageItems.map((application) => (
                 <div key={application.id} className="rounded-lg border bg-card p-5 shadow-sm">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
@@ -207,6 +209,7 @@ export default function MyApplicationsPage() {
               ))}
             </div>
           )}
+          <PaginationControls {...applicationsPagination} onPageChange={applicationsPagination.setPage} />
         </CardContent>
       </Card>
 

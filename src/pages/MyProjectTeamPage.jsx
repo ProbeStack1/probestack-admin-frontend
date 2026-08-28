@@ -25,6 +25,7 @@ import { getErrorMessage } from "../lib/utils";
 import { toast } from "sonner";
 import { ArrowLeft, Mail, Send, Users } from "lucide-react";
 import { format } from "date-fns";
+import PaginationControls, { usePagination } from "../components/PaginationControls";
 
 export default function MyProjectTeamPage() {
   const { projectId } = useParams();
@@ -46,6 +47,7 @@ export default function MyProjectTeamPage() {
     () => new Set(team.filter((member) => member.status !== "removed").map((member) => member.email)),
     [team]
   );
+  const teamPagination = usePagination(team);
 
   const fetchPageData = async () => {
     try {
@@ -213,7 +215,7 @@ export default function MyProjectTeamPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {team.map((member) => (
+                  {teamPagination.pageItems.map((member) => (
                     <TableRow key={member.id}>
                       <TableCell className="font-medium">{member.name || member.user?.name || "-"}</TableCell>
                       <TableCell>{member.email}</TableCell>
@@ -241,6 +243,7 @@ export default function MyProjectTeamPage() {
               </Table>
             </div>
           )}
+          <PaginationControls {...teamPagination} onPageChange={teamPagination.setPage} />
         </CardContent>
       </Card>
     </div>

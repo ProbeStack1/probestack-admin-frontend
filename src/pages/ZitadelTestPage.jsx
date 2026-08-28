@@ -40,6 +40,7 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
+import PaginationControls, { usePagination } from "../components/PaginationControls";
 
 const initialOrgForm = {
   name: "",
@@ -521,6 +522,12 @@ export default function ZitadelTestPage() {
     value: role.id,
     label: `${role.name} (${optionId(role.id)})`,
   }));
+  const pricingRows = pricing.flatMap((product) =>
+    (product.plans || []).map((plan) => ({ product, plan }))
+  );
+  const pricingPagination = usePagination(pricingRows);
+  const rolesPagination = usePagination(roles);
+  const recordsPagination = usePagination(records);
 
   return (
     <div className="space-y-6">
@@ -603,17 +610,16 @@ export default function ZitadelTestPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {pricing.flatMap((product) =>
-                      (product.plans || []).slice(0, 3).map((plan) => (
-                        <TableRow key={`${product.key}-${plan.id}`}>
-                          <TableCell>{product.name || product.key}</TableCell>
-                          <TableCell className="font-mono text-xs">{plan.id}</TableCell>
-                          <TableCell>{plan.name}</TableCell>
-                        </TableRow>
-                      ))
-                    )}
+                    {pricingPagination.pageItems.map(({ product, plan }) => (
+                      <TableRow key={`${product.key}-${plan.id}`}>
+                        <TableCell>{product.name || product.key}</TableCell>
+                        <TableCell className="font-mono text-xs">{plan.id}</TableCell>
+                        <TableCell>{plan.name}</TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
+                <PaginationControls {...pricingPagination} onPageChange={pricingPagination.setPage} />
               </div>
             )}
 
@@ -695,7 +701,7 @@ export default function ZitadelTestPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {roles.map((role) => (
+                    {rolesPagination.pageItems.map((role) => (
                       <TableRow key={role.id}>
                         <TableCell>{role.name}</TableCell>
                         <TableCell className="font-mono text-xs">{role.id}</TableCell>
@@ -703,6 +709,7 @@ export default function ZitadelTestPage() {
                     ))}
                   </TableBody>
                 </Table>
+                <PaginationControls {...rolesPagination} onPageChange={rolesPagination.setPage} />
               </div>
             </div>
           )}
@@ -887,7 +894,7 @@ export default function ZitadelTestPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {records.map((record) => (
+                  {recordsPagination.pageItems.map((record) => (
                     <TableRow key={record.id}>
                       <TableCell>{record.email}</TableCell>
                       <TableCell>{record.organization_name || "-"}</TableCell>
@@ -899,6 +906,7 @@ export default function ZitadelTestPage() {
                   ))}
                 </TableBody>
               </Table>
+              <PaginationControls {...recordsPagination} onPageChange={recordsPagination.setPage} />
             </div>
           ) : (
             <p className="py-8 text-center text-muted-foreground">

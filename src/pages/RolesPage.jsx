@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
+import PaginationControls, { usePagination } from "../components/PaginationControls";
 import {
   Dialog,
   DialogContent,
@@ -136,6 +137,7 @@ export default function RolesPage() {
       setSaving(false);
     }
   };
+  const rolesPagination = usePagination(roles);
 
   if (loading) {
     return (
@@ -177,7 +179,7 @@ export default function RolesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {roles.map((role) => (
+                {rolesPagination.pageItems.map((role) => (
                   <TableRow key={role.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -237,6 +239,7 @@ export default function RolesPage() {
               </TableBody>
             </Table>
           )}
+          <PaginationControls {...rolesPagination} onPageChange={rolesPagination.setPage} />
         </CardContent>
       </Card>
 

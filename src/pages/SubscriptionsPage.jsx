@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
+import PaginationControls, { usePagination } from "../components/PaginationControls";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -137,6 +138,7 @@ export default function SubscriptionsPage() {
       sub.organization_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       sub.plan_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  const subscriptionsPagination = usePagination(filteredSubs);
 
   const getStatusBadge = (status) => {
     const classes = {
@@ -222,7 +224,7 @@ export default function SubscriptionsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredSubs.map((sub) => (
+                {subscriptionsPagination.pageItems.map((sub) => (
                   <TableRow key={sub.id} data-testid={`sub-row-${sub.id}`}>
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -313,6 +315,7 @@ export default function SubscriptionsPage() {
               </TableBody>
             </Table>
           )}
+          <PaginationControls {...subscriptionsPagination} onPageChange={subscriptionsPagination.setPage} />
         </CardContent>
       </Card>
 

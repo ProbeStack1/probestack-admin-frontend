@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { Bell, Check, CheckCheck, Trash2, Info, AlertTriangle, AlertCircle, CheckCircle, Mail, Plus, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
+import PaginationControls, { usePagination } from "../components/PaginationControls";
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
@@ -159,6 +160,7 @@ export default function NotificationsPage() {
   };
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
+  const notificationsPagination = usePagination(notifications);
 
   if (loading) {
     return (
@@ -272,7 +274,7 @@ export default function NotificationsPage() {
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {notifications.map((notif) => (
+              {notificationsPagination.pageItems.map((notif) => (
                 <div
                   key={notif.id}
                   className={`flex items-start gap-4 p-4 hover:bg-muted/50 transition-colors cursor-pointer ${
@@ -324,6 +326,7 @@ export default function NotificationsPage() {
               ))}
             </div>
           )}
+          <PaginationControls {...notificationsPagination} onPageChange={notificationsPagination.setPage} />
         </CardContent>
       </Card>
 

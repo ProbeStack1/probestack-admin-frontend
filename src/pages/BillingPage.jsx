@@ -32,6 +32,7 @@ import { billingApi } from "../lib/api";
 import { toast } from "sonner";
 import { Receipt, Search, Eye, CheckCircle, XCircle, Calendar, DollarSign, Building2, RefreshCw, Download, Mail, Plus, X } from "lucide-react";
 import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
+import PaginationControls, { usePagination } from "../components/PaginationControls";
 
 export default function BillingPage() {
   const [records, setRecords] = useState([]);
@@ -216,6 +217,7 @@ export default function BillingPage() {
       return matchesSearch && matchesMonth;
     });
   }, [records, searchTerm, monthFilter]);
+  const recordsPagination = usePagination(filteredRecords);
 
   const getStatusBadge = (status) => {
     const classes = { paid: "status-paid", pending: "status-pending", failed: "status-rejected", refunded: "status-paused" };
@@ -329,7 +331,7 @@ export default function BillingPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredRecords.map((record) => (
+                {recordsPagination.pageItems.map((record) => (
                   <TableRow key={record.id}>
                     <TableCell className="font-mono text-sm">{record.invoice_number}</TableCell>
                     <TableCell>
@@ -370,6 +372,7 @@ export default function BillingPage() {
               </TableBody>
             </Table>
           )}
+          <PaginationControls {...recordsPagination} onPageChange={recordsPagination.setPage} />
         </CardContent>
       </Card>
 

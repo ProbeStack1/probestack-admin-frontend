@@ -19,6 +19,7 @@ import { getErrorMessage } from "../lib/utils";
 import OrganizationTabs from "../components/OrganizationTabs";
 import OnboardingFormSections from "../components/OnboardingFormSections";
 import { buildInitialData, buildPayloadFromData, businessUnitSections } from "../lib/onboardingFields";
+import PaginationControls, { usePagination } from "../components/PaginationControls";
 
 const statusClasses = {
   active: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
@@ -109,6 +110,7 @@ export default function MyBusinessUnitsPage() {
       .toLowerCase()
       .includes(term);
   });
+  const businessUnitsPagination = usePagination(filteredBusinessUnits);
 
   return (
     <div className="space-y-6" data-testid="my-business-units-page">
@@ -158,7 +160,7 @@ export default function MyBusinessUnitsPage() {
             </div>
           ) : (
             <div className="grid gap-4 lg:grid-cols-2">
-              {filteredBusinessUnits.map((businessUnit) => (
+              {businessUnitsPagination.pageItems.map((businessUnit) => (
                 <div key={businessUnit.id} className="rounded-lg border bg-card p-5 shadow-sm">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
@@ -188,6 +190,7 @@ export default function MyBusinessUnitsPage() {
               ))}
             </div>
           )}
+          <PaginationControls {...businessUnitsPagination} onPageChange={businessUnitsPagination.setPage} />
         </CardContent>
       </Card>
 

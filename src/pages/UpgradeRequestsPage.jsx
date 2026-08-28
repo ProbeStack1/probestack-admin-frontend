@@ -24,6 +24,7 @@ import { upgradeRequestsApi } from "../lib/api";
 import { toast } from "sonner";
 import { TrendingUp, Check, X, Clock, Building2 } from "lucide-react";
 import { format } from "date-fns";
+import PaginationControls, { usePagination } from "../components/PaginationControls";
 
 export default function UpgradeRequestsPage() {
   const [requests, setRequests] = useState([]);
@@ -81,6 +82,8 @@ export default function UpgradeRequestsPage() {
 
   const pendingRequests = requests.filter((r) => r.status === "pending");
   const processedRequests = requests.filter((r) => r.status !== "pending");
+  const pendingRequestsPagination = usePagination(pendingRequests);
+  const processedRequestsPagination = usePagination(processedRequests);
   const genericAccessToolPattern = /^(starter|enterprise|enterprise\s*-\s*plus.*)\s+access$/i;
   const getRequestPlanLabels = (request, key, fallback) => {
     const details = request?.[key] || [];
@@ -137,7 +140,7 @@ export default function UpgradeRequestsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pendingRequests.map((request) => (
+                  {pendingRequestsPagination.pageItems.map((request) => (
                     <TableRow key={request.id}>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -173,6 +176,7 @@ export default function UpgradeRequestsPage() {
               </Table>
             </div>
           )}
+          <PaginationControls {...pendingRequestsPagination} onPageChange={pendingRequestsPagination.setPage} />
         </CardContent>
       </Card>
 
@@ -194,7 +198,7 @@ export default function UpgradeRequestsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {processedRequests.map((request) => (
+                  {processedRequestsPagination.pageItems.map((request) => (
                     <TableRow key={request.id}>
                       <TableCell className="font-medium">{request.organization_name}</TableCell>
                       <TableCell>{renderPlanList(getRequestPlanLabels(request, "current_plan_details", request.current_plan_name))}</TableCell>
@@ -210,6 +214,7 @@ export default function UpgradeRequestsPage() {
                 </TableBody>
               </Table>
             </div>
+            <PaginationControls {...processedRequestsPagination} onPageChange={processedRequestsPagination.setPage} />
           </CardContent>
         </Card>
       )}

@@ -34,6 +34,7 @@ import { myOrganizationApi } from "../lib/api";
 import { toast } from "sonner";
 import { Edit, Users, Search, Trash2, Plus } from "lucide-react";
 import { getErrorMessage } from "../lib/utils";
+import PaginationControls, { usePagination } from "../components/PaginationControls";
 
 export default function MyUsersPage() {
   const [users, setUsers] = useState([]);
@@ -92,6 +93,7 @@ export default function MyUsersPage() {
       user.name.toLowerCase().includes(search.toLowerCase()) ||
       user.email.toLowerCase().includes(search.toLowerCase())
   );
+  const usersPagination = usePagination(filteredUsers);
 
   const getAssignedRoleIds = (user) => {
     if (Array.isArray(user?.role_ids) && user.role_ids.length > 0) {
@@ -167,7 +169,7 @@ export default function MyUsersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredUsers.map((user) => (
+                  {usersPagination.pageItems.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.name}</TableCell>
                       <TableCell>{user.email}</TableCell>
@@ -201,6 +203,7 @@ export default function MyUsersPage() {
               </Table>
             </div>
           )}
+          <PaginationControls {...usersPagination} onPageChange={usersPagination.setPage} />
         </CardContent>
       </Card>
 

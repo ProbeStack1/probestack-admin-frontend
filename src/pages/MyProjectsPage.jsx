@@ -34,6 +34,7 @@ import { format } from "date-fns";
 import { getErrorMessage } from "../lib/utils";
 import OrganizationTabs from "../components/OrganizationTabs";
 import OnboardingFormSections from "../components/OnboardingFormSections";
+import PaginationControls, { usePagination } from "../components/PaginationControls";
 import { buildInitialData, buildPayloadFromData, projectSections } from "../lib/onboardingFields";
 
 const unassignedBusinessUnit = "__unassigned__";
@@ -169,6 +170,8 @@ export default function MyProjectsPage() {
       .toLowerCase();
     return searchable.includes(term);
   });
+  const teamMembersPagination = usePagination(filteredTeamMembers);
+  const projectsPagination = usePagination(filteredProjects);
 
   return (
     <div className="space-y-6" data-testid="my-projects-page">
@@ -226,7 +229,7 @@ export default function MyProjectsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredTeamMembers.map((member) => (
+                  {teamMembersPagination.pageItems.map((member) => (
                     <TableRow key={member.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
@@ -265,6 +268,7 @@ export default function MyProjectsPage() {
               </Table>
             </div>
           )}
+          <PaginationControls {...teamMembersPagination} onPageChange={teamMembersPagination.setPage} />
         </CardContent>
       </Card>
 
@@ -328,7 +332,7 @@ export default function MyProjectsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredProjects.map((project) => (
+                  {projectsPagination.pageItems.map((project) => (
                     <TableRow key={project.id}>
                       <TableCell>
                         <div>
@@ -372,6 +376,7 @@ export default function MyProjectsPage() {
               </Table>
             </div>
           )}
+          <PaginationControls {...projectsPagination} onPageChange={projectsPagination.setPage} />
         </CardContent>
       </Card>
 

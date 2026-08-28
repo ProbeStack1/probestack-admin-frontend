@@ -35,6 +35,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
+import PaginationControls, { usePagination } from "../components/PaginationControls";
 import { organizationsApi, plansApi } from "../lib/api";
 import { toast } from "sonner";
 import { Building2, Search, MoreVertical, Trash2, Eye, Mail, Phone, Globe, Edit, Hash, AtSign, Plus, Layers3, Users, Package } from "lucide-react";
@@ -424,6 +425,7 @@ export default function OrganizationsPage() {
       org.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       org.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  const organizationsPagination = usePagination(filteredOrgs);
 
   const getStatusBadge = (status) => {
     const classes = {
@@ -512,7 +514,7 @@ export default function OrganizationsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredOrgs.map((org) => (
+                {organizationsPagination.pageItems.map((org) => (
                   <TableRow key={org.id} data-testid={`org-row-${org.id}`}>
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -578,6 +580,7 @@ export default function OrganizationsPage() {
               </TableBody>
             </Table>
           )}
+          <PaginationControls {...organizationsPagination} onPageChange={organizationsPagination.setPage} />
         </CardContent>
       </Card>
 

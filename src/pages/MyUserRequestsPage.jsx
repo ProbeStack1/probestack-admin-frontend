@@ -31,6 +31,7 @@ import { myOrganizationApi } from "../lib/api";
 import { toast } from "sonner";
 import { UserPlus, Check, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import PaginationControls, { usePagination } from "../components/PaginationControls";
 
 export default function MyUserRequestsPage() {
   const [requests, setRequests] = useState([]);
@@ -110,6 +111,8 @@ export default function MyUserRequestsPage() {
 
   const pendingRequests = requests.filter((r) => r.status === "pending");
   const processedRequests = requests.filter((r) => r.status !== "pending");
+  const pendingRequestsPagination = usePagination(pendingRequests);
+  const processedRequestsPagination = usePagination(processedRequests);
   const filteredTeams = teams.filter((team) => team.business_unit_id === selectedBusinessUnit);
 
   return (
@@ -142,7 +145,7 @@ export default function MyUserRequestsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pendingRequests.map((request) => (
+                  {pendingRequestsPagination.pageItems.map((request) => (
                     <TableRow key={request.id}>
                       <TableCell className="font-medium">{request.name}</TableCell>
                       <TableCell>{request.email}</TableCell>
@@ -164,6 +167,7 @@ export default function MyUserRequestsPage() {
               </Table>
             </div>
           )}
+          <PaginationControls {...pendingRequestsPagination} onPageChange={pendingRequestsPagination.setPage} />
         </CardContent>
       </Card>
 
@@ -186,7 +190,7 @@ export default function MyUserRequestsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {processedRequests.map((request) => (
+                  {processedRequestsPagination.pageItems.map((request) => (
                     <TableRow key={request.id}>
                       <TableCell className="font-medium">{request.name}</TableCell>
                       <TableCell>{request.email}</TableCell>
@@ -213,6 +217,7 @@ export default function MyUserRequestsPage() {
                 </TableBody>
               </Table>
             </div>
+            <PaginationControls {...processedRequestsPagination} onPageChange={processedRequestsPagination.setPage} />
           </CardContent>
         </Card>
       )}

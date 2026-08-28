@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { Building2, Clock, Search, Eye, Check, X, Package, Trash2 } from "lucide-react";
 import { cn, getErrorMessage } from "../lib/utils";
 import { format } from "date-fns";
+import PaginationControls, { usePagination } from "../components/PaginationControls";
 
 export default function PendingOrganizationsPage() {
   const [organizations, setOrganizations] = useState([]);
@@ -121,6 +122,7 @@ export default function PendingOrganizationsPage() {
       org.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       org.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  const pendingOrgsPagination = usePagination(filteredOrgs);
 
   if (loading) {
     return (
@@ -184,7 +186,7 @@ export default function PendingOrganizationsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredOrgs.map((org) => (
+                {pendingOrgsPagination.pageItems.map((org) => (
                   <TableRow key={org.id} data-testid={`org-row-${org.id}`}>
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -264,6 +266,7 @@ export default function PendingOrganizationsPage() {
               </TableBody>
             </Table>
           )}
+          <PaginationControls {...pendingOrgsPagination} onPageChange={pendingOrgsPagination.setPage} />
         </CardContent>
       </Card>
 

@@ -30,6 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
+import PaginationControls, { usePagination } from "../components/PaginationControls";
 import {
   Accordion,
   AccordionContent,
@@ -460,6 +461,8 @@ export default function PlansPage() {
   const managingPlan = plans.find((plan) => plan.id === managingPlanId);
   const managingProduct = products.find((product) => product.id === managingPlan?.product_id) || products.find((product) => product.id === selectedProductId);
   const managingOptionLabels = getPlanOptionLabels(managingProduct);
+  const plansPagination = usePagination(plans);
+  const inactivePlansPagination = usePagination(inactivePlans);
 
   if (loading) {
     return (
@@ -572,7 +575,7 @@ export default function PlansPage() {
               </Card>
             ) : (
               <div className="space-y-6">
-                {plans.map((plan) => {
+                {plansPagination.pageItems.map((plan) => {
                   const planCost = plan.cost ?? plan.price_monthly ?? 0;
                   const displayPrice = plan.price_label || plan.price || `$${planCost}`;
                   return (
@@ -757,6 +760,7 @@ export default function PlansPage() {
                     </Card>
                   );
                 })}
+                <PaginationControls {...plansPagination} onPageChange={plansPagination.setPage} />
               </div>
             )}
 
@@ -780,7 +784,7 @@ export default function PlansPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {inactivePlans.map((plan) => {
+                      {inactivePlansPagination.pageItems.map((plan) => {
                         const planCost = plan.cost ?? plan.price_monthly ?? 0;
                         const displayPrice = plan.price_label || plan.price || `$${planCost}`;
                         return (
@@ -813,6 +817,7 @@ export default function PlansPage() {
                     </TableBody>
                   </Table>
                 </div>
+                <PaginationControls {...inactivePlansPagination} onPageChange={inactivePlansPagination.setPage} />
               </div>
             )}
           </TabsContent>
