@@ -26,9 +26,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
+import { Checkbox } from "../components/ui/checkbox";
+import { Label } from "../components/ui/label";
 import { billingApi } from "../lib/api";
 import { toast } from "sonner";
-import { Receipt, Search, Eye, CheckCircle, XCircle, Calendar, DollarSign, Building2, RefreshCw, Download } from "lucide-react";
+import { Receipt, Search, Eye, CheckCircle, XCircle, Calendar, DollarSign, Building2, RefreshCw, Download, Mail, Plus, X } from "lucide-react";
 import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 
 export default function BillingPage() {
@@ -39,8 +41,14 @@ export default function BillingPage() {
   const [monthFilter, setMonthFilter] = useState("all");
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
+  const [showEmailDialog, setShowEmailDialog] = useState(false);
+  const [emailRecord, setEmailRecord] = useState(null);
+  const [recipientOptions, setRecipientOptions] = useState([]);
+  const [selectedEmails, setSelectedEmails] = useState([]);
+  const [customEmail, setCustomEmail] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [generatingBills, setGeneratingBills] = useState(false);
+  const [sendingInvoice, setSendingInvoice] = useState(false);
 
   useEffect(() => {
     fetchRecords();
@@ -98,6 +106,60 @@ export default function BillingPage() {
       toast.error(error.response?.data?.detail || "Failed to download invoice");
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const openEmailDialog = async (record) => {
+    setEmailRecord(record);
+    setShowEmailDialog(true);
+    setRecipientOptions([]);
+    setSelectedEmails([]);
+    setCustomEmail("");
+    try {
+      const response = await billingApi.getInvoiceRecipients(record.id);
+      const options = response.data || [];
+      setRecipientOptions(options);
+      const defaultEmail = options.find((option) => option.type === "organization")?.email;
+      setSelectedEmails(defaultEmail ? [defaultEmail] : []);
+    } catch (error) {
+      toast.error("Failed to load invoice recipients");
+    }
+  };
+
+  const toggleSelectedEmail = (email) => {
+    setSelectedEmails((current) =>
+      current.includes(email)
+        ? current.filter((item) => item !== email)
+        : [...current, email]
+    );
+  };
+
+  const addCustomEmail = () => {
+    const email = customEmail.trim();
+    if (!email) return;
+    if (!selectedEmails.includes(email)) {
+      setSelectedEmails((current) => [...current, email]);
+    }
+    setCustomEmail("");
+  };
+
+  const removeSelectedEmail = (email) => {
+    setSelectedEmails((current) => current.filter((item) => item !== email));
+  };
+
+  const handleSendInvoiceEmail = async () => {
+    if (!emailRecord || selectedEmails.length === 0) return;
+    setSendingInvoice(true);
+    try {
+      await billingApi.sendInvoiceEmail(emailRecord.id, selectedEmails);
+      toast.success("Invoice email sent");
+      setShowEmailDialog(false);
+      setEmailRecord(null);
+      setSelectedEmails([]);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to send invoice email");
+    } finally {
+      setSendingInvoice(false);
     }
   };
 
@@ -288,6 +350,9 @@ export default function BillingPage() {
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => handleDownloadInvoice(record)} disabled={actionLoading} title="Download Invoice">
                           <Download className="h-4 w-4" />
                         </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => openEmailDialog(record)} disabled={actionLoading} title="Email Invoice">
+                          <Mail className="h-4 w-4" />
+                        </Button>
                         {record.status === "pending" && (
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-500" onClick={() => handleMarkPaid(record)} disabled={actionLoading} title="Mark as Paid">
                             <CheckCircle className="h-4 w-4" />
@@ -330,6 +395,11 @@ export default function BillingPage() {
                 <Download className="mr-2 h-4 w-4" />Download Invoice
               </Button>
             )}
+            {selectedRecord && (
+              <Button onClick={() => openEmailDialog(selectedRecord)} disabled={actionLoading} variant="outline">
+                <Mail className="mr-2 h-4 w-4" />Email Invoice
+              </Button>
+            )}
             {selectedRecord?.status === "pending" && (
               <Button onClick={() => handleMarkPaid(selectedRecord)} disabled={actionLoading} className="bg-emerald-600 hover:bg-emerald-700">
                 <CheckCircle className="mr-2 h-4 w-4" />Mark as Paid
@@ -340,6 +410,82 @@ export default function BillingPage() {
                 <XCircle className="mr-2 h-4 w-4" />Mark as Unpaid
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Email Invoice</DialogTitle>
+            <DialogDescription>{emailRecord?.invoice_number}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Recipients</Label>
+              <div className="max-h-64 space-y-2 overflow-y-auto rounded-md border p-3">
+                {recipientOptions.length === 0 ? (
+                  <p className="px-2 py-3 text-sm text-muted-foreground">No saved recipients found for this organization.</p>
+                ) : (
+                  recipientOptions.map((option) => (
+                    <label key={option.email} className="flex cursor-pointer items-start gap-3 rounded-md px-2 py-2 hover:bg-muted">
+                      <Checkbox
+                        checked={selectedEmails.includes(option.email)}
+                        onCheckedChange={() => toggleSelectedEmail(option.email)}
+                      />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium leading-none">{option.name || option.email}</span>
+                        <span className="mt-1 block text-xs text-muted-foreground">{option.email} · {option.type.replace("_", " ")}</span>
+                      </span>
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Add Email</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="email"
+                  placeholder="finance@example.com"
+                  value={customEmail}
+                  onChange={(event) => setCustomEmail(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      addCustomEmail();
+                    }
+                  }}
+                />
+                <Button type="button" variant="outline" onClick={addCustomEmail}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add
+                </Button>
+              </div>
+            </div>
+            {selectedEmails.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {selectedEmails.map((email) => (
+                  <Badge key={email} variant="secondary" className="gap-1">
+                    {email}
+                    <button type="button" onClick={() => removeSelectedEmail(email)} className="ml-1 rounded-full hover:text-destructive">
+                      <X className="h-3 w-3" />
+                      <span className="sr-only">Remove recipient</span>
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">ProbeStack notification group will be included in BCC.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEmailDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSendInvoiceEmail} disabled={sendingInvoice || selectedEmails.length === 0}>
+              <Mail className="mr-2 h-4 w-4" />
+              {sendingInvoice ? "Sending..." : "Send Invoice"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

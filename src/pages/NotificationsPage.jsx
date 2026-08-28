@@ -2,17 +2,32 @@ import { useState, useEffect } from "react";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
+import { Switch } from "../components/ui/switch";
 import { notificationsApi } from "../lib/api";
 import { toast } from "sonner";
-import { Bell, Check, CheckCheck, Trash2, Info, AlertTriangle, AlertCircle, CheckCircle } from "lucide-react";
+import { Bell, Check, CheckCheck, Trash2, Info, AlertTriangle, AlertCircle, CheckCircle, Mail, Plus, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
+  const [groupEmails, setGroupEmails] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all"); // all, unread
+  const [groupDialog, setGroupDialog] = useState({ open: false, emailRecord: null });
+  const [groupForm, setGroupForm] = useState({ email: "", name: "", is_active: true });
+  const [deleteGroupDialog, setDeleteGroupDialog] = useState({ open: false, emailRecord: null });
 
   useEffect(() => {
     fetchNotifications();
@@ -21,8 +36,12 @@ export default function NotificationsPage() {
   const fetchNotifications = async () => {
     try {
       const params = filter === "unread" ? { unread_only: true } : {};
-      const response = await notificationsApi.getAll(params);
-      setNotifications(response.data);
+      const [notificationsResponse, groupResponse] = await Promise.all([
+        notificationsApi.getAll(params),
+        notificationsApi.getGroupEmails(),
+      ]);
+      setNotifications(notificationsResponse.data);
+      setGroupEmails(groupResponse.data || []);
     } catch (error) {
       toast.error("Failed to load notifications");
     } finally {
@@ -56,6 +75,51 @@ export default function NotificationsPage() {
       fetchNotifications();
     } catch (error) {
       toast.error("Failed to delete notification");
+    }
+  };
+
+  const openGroupDialog = (emailRecord = null) => {
+    setGroupDialog({ open: true, emailRecord });
+    setGroupForm({
+      email: emailRecord?.email || "",
+      name: emailRecord?.name || "",
+      is_active: emailRecord?.is_active ?? true,
+    });
+  };
+
+  const handleSaveGroupEmail = async () => {
+    if (!groupForm.email.trim()) return;
+    try {
+      const payload = {
+        email: groupForm.email.trim(),
+        name: groupForm.name.trim() || null,
+        is_active: groupForm.is_active,
+      };
+      if (groupDialog.emailRecord) {
+        await notificationsApi.updateGroupEmail(groupDialog.emailRecord.id, payload);
+        toast.success("Notification email updated");
+      } else {
+        await notificationsApi.createGroupEmail(payload);
+        toast.success("Notification email added");
+      }
+      setGroupDialog({ open: false, emailRecord: null });
+      setGroupForm({ email: "", name: "", is_active: true });
+      fetchNotifications();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to save notification email");
+    }
+  };
+
+  const handleDeleteGroupEmail = async () => {
+    if (!deleteGroupDialog.emailRecord) return;
+    try {
+      await notificationsApi.deleteGroupEmail(deleteGroupDialog.emailRecord.id);
+      toast.success("Notification email deleted");
+      fetchNotifications();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to delete notification email");
+    } finally {
+      setDeleteGroupDialog({ open: false, emailRecord: null });
     }
   };
 
@@ -143,6 +207,56 @@ export default function NotificationsPage() {
         </div>
       </div>
 
+      <Card className="border-border/50" data-testid="notification-group-card">
+        <CardContent className="p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="flex items-center gap-2 text-lg font-semibold">
+                <Mail className="h-5 w-5 text-primary" />
+                Notification Group
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">Emails included on admin and billing notifications.</p>
+            </div>
+            <Button size="sm" onClick={() => openGroupDialog()}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Email
+            </Button>
+          </div>
+          <div className="mt-4 divide-y divide-border rounded-md border">
+            {groupEmails.length === 0 ? (
+              <div className="p-4 text-sm text-muted-foreground">No notification group emails configured.</div>
+            ) : (
+              groupEmails.map((emailRecord) => (
+                <div key={emailRecord.id} className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate font-medium">{emailRecord.email}</p>
+                      <Badge variant={emailRecord.is_active ? "secondary" : "outline"}>
+                        {emailRecord.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                    </div>
+                    {emailRecord.name && <p className="mt-1 text-sm text-muted-foreground">{emailRecord.name}</p>}
+                  </div>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openGroupDialog(emailRecord)}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive"
+                      onClick={() => setDeleteGroupDialog({ open: true, emailRecord })}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Notifications List */}
       <Card className="border-border/50" data-testid="notifications-list">
         <CardContent className="p-0">
@@ -212,6 +326,69 @@ export default function NotificationsPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={groupDialog.open} onOpenChange={(open) => setGroupDialog({ open, emailRecord: open ? groupDialog.emailRecord : null })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{groupDialog.emailRecord ? "Update Notification Email" : "Add Notification Email"}</DialogTitle>
+            <DialogDescription>Manage one recipient in the ProbeStack notification group.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={groupForm.email}
+                onChange={(event) => setGroupForm({ ...groupForm, email: event.target.value })}
+                placeholder="admin@example.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Name</Label>
+              <Input
+                value={groupForm.name}
+                onChange={(event) => setGroupForm({ ...groupForm, name: event.target.value })}
+                placeholder="Admin name"
+              />
+            </div>
+            <label className="flex items-center justify-between rounded-md border p-3">
+              <span>
+                <span className="block text-sm font-medium">Active</span>
+                <span className="text-xs text-muted-foreground">Inactive emails stay saved but are skipped.</span>
+              </span>
+              <Switch
+                checked={groupForm.is_active}
+                onCheckedChange={(checked) => setGroupForm({ ...groupForm, is_active: checked })}
+              />
+            </label>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setGroupDialog({ open: false, emailRecord: null })}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveGroupEmail} disabled={!groupForm.email.trim()}>
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteGroupDialog.open} onOpenChange={(open) => setDeleteGroupDialog({ open, emailRecord: open ? deleteGroupDialog.emailRecord : null })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Notification Email</DialogTitle>
+            <DialogDescription>Delete {deleteGroupDialog.emailRecord?.email} from the notification group?</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteGroupDialog({ open: false, emailRecord: null })}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteGroupEmail}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
