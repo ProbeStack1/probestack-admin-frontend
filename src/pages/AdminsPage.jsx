@@ -75,15 +75,21 @@ export default function AdminsPage() {
   }, []);
 
   const fetchData = async () => {
+    setLoading(true);
     try {
-      const [adminsRes, orgsRes] = await Promise.all([
-        adminsApi.getAll(),
-        organizationsApi.getAll({ status: "approved" }),
-      ]);
-      setAdmins(adminsRes.data);
-      setOrganizations(orgsRes.data);
+      const adminsRes = await adminsApi.getAll();
+      setAdmins(Array.isArray(adminsRes.data) ? adminsRes.data : []);
     } catch (error) {
-      toast.error("Failed to load data");
+      toast.error(getErrorMessage(error, "Failed to load admin accounts"));
+      setAdmins([]);
+    }
+
+    try {
+      const orgsRes = await organizationsApi.getAll({ status: "approved" });
+      setOrganizations(Array.isArray(orgsRes.data) ? orgsRes.data : []);
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to load approved organizations"));
+      setOrganizations([]);
     } finally {
       setLoading(false);
     }

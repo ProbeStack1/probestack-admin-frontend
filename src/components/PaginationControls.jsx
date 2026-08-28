@@ -12,23 +12,28 @@ export function usePagination(items, pageSize = 10) {
   const [page, setPage] = useState(1);
   const totalItems = items.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const pageSignature = useMemo(
+    () => items.map((item) => item?.id ?? item).join("|"),
+    [items]
+  );
+  const safePage = Math.min(Math.max(page, 1), totalPages);
 
   useEffect(() => {
     setPage(1);
-  }, [totalItems, pageSize]);
+  }, [pageSignature, pageSize]);
 
   useEffect(() => {
-    if (page > totalPages) {
-      setPage(totalPages);
+    if (page !== safePage) {
+      setPage(safePage);
     }
-  }, [page, totalPages]);
+  }, [page, safePage]);
 
   const pageItems = useMemo(() => {
-    const start = (page - 1) * pageSize;
+    const start = (safePage - 1) * pageSize;
     return items.slice(start, start + pageSize);
-  }, [items, page, pageSize]);
+  }, [items, safePage, pageSize]);
 
-  return { page, setPage, totalItems, totalPages, pageItems, pageSize };
+  return { page: safePage, setPage, totalItems, totalPages, pageItems, pageSize };
 }
 
 export default function PaginationControls({ page, totalPages, totalItems, pageSize, onPageChange }) {
