@@ -104,6 +104,7 @@ const emptyCreateData = {
   name: "",
   email: "",
   domain: "",
+  main_app_domain: "",
   requested_plans: [],
   requested_tools_by_plan: {},
   contact_person: "",
@@ -135,6 +136,9 @@ export default function OrganizationsPage() {
     ...buildInitialData(organizationSections),
     external_org_id: "",
     supported_domains: "",
+    main_app_domain: "",
+    product_domains: {},
+    product_databases: {},
     gateway_region: "",
     gateway_organization_name: "",
     gateway_environment_type: "",
@@ -216,6 +220,7 @@ export default function OrganizationsPage() {
         name: createData.name.trim(),
         email: createData.email.trim(),
         domain: createData.domain.trim() || null,
+        main_app_domain: createData.main_app_domain.trim() || null,
         requested_plans: requestedPlans,
         contact_person: createData.contact_person.trim(),
         phone: createData.phone.trim() || null,
@@ -298,6 +303,7 @@ export default function OrganizationsPage() {
       ...buildInitialData(organizationSections, org),
       email: org.email || "",
       domain: org.domain || "",
+      main_app_domain: org.main_app_domain || "",
       contact_person: org.contact_person || "",
       phone: org.phone || "",
       address: org.address || "",
@@ -309,6 +315,18 @@ export default function OrganizationsPage() {
       gateway_organization_name: org.gateway_organization_name || "",
       gateway_environment_type: org.gateway_environment_type || "",
       gateway_environments: formatList(toList(org.gateway_environments)),
+      product_domains: (org.active_plan_details || []).reduce((domains, plan) => {
+        if (plan.subscription_id) {
+          domains[plan.subscription_id] = plan.custom_domain || plan.domain || "";
+        }
+        return domains;
+      }, {}),
+      product_databases: (org.active_plan_details || []).reduce((databases, plan) => {
+        if (plan.subscription_id) {
+          databases[plan.subscription_id] = plan.database || "";
+        }
+        return databases;
+      }, {}),
     });
     setShowEditDialog(true);
   };
@@ -397,6 +415,7 @@ export default function OrganizationsPage() {
         name: editData.name.trim(),
         email: editData.email.trim(),
         domain: editData.domain.trim() || null,
+        main_app_domain: editData.main_app_domain?.trim() || null,
         contact_person: editData.contact_person.trim(),
         phone: editData.phone.trim() || null,
         address: editData.address.trim() || null,
@@ -408,6 +427,16 @@ export default function OrganizationsPage() {
         gateway_organization_name: editData.gateway_organization_name || null,
         gateway_environment_type: editData.gateway_environment_type || null,
         gateway_environments: parseList(editData.gateway_environments),
+      });
+      await organizationsApi.updateDomains(selectedOrg.id, {
+        main_app_domain: editData.main_app_domain?.trim() || null,
+        product_domains: (selectedOrg.active_plan_details || [])
+          .filter((plan) => plan.subscription_id)
+          .map((plan) => ({
+            subscription_id: plan.subscription_id,
+            domain: editData.product_domains?.[plan.subscription_id]?.trim() || null,
+            database: editData.product_databases?.[plan.subscription_id]?.trim() || null,
+          })),
       });
       toast.success("Organization updated successfully");
       fetchOrganizations();
@@ -596,6 +625,7 @@ export default function OrganizationsPage() {
           <div className="grid gap-4 py-4 md:grid-cols-2">
             <CreateInput label="Organization Email" type="email" value={createData.email} onChange={(value) => setCreateData({ ...createData, email: value })} required />
             <CreateInput label="Domain" placeholder="example.com" value={createData.domain} onChange={(value) => setCreateData({ ...createData, domain: value })} required />
+            <CreateInput label="Main App Custom Domain" placeholder="app.customer.com" value={createData.main_app_domain} onChange={(value) => setCreateData({ ...createData, main_app_domain: value })} />
             <CreateInput label="Contact Person" value={createData.contact_person} onChange={(value) => setCreateData({ ...createData, contact_person: value })} required />
             <CreateInput label="Contact Phone" value={createData.phone} onChange={(value) => setCreateData({ ...createData, phone: value })} required />
             <div className="space-y-2 md:col-span-2">
@@ -729,6 +759,12 @@ export default function OrganizationsPage() {
                     <span>{selectedOrg.domain}</span>
                   </div>
                 )}
+                {selectedOrg.main_app_domain && (
+                  <div className="flex items-center gap-3 text-sm">
+                    <Globe className="h-4 w-4 text-muted-foreground" />
+                    <span>{selectedOrg.main_app_domain}</span>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4 pt-4 border-t">
@@ -760,6 +796,30 @@ export default function OrganizationsPage() {
               </div>
 
               <OrganizationFieldSummary organization={selectedOrg} />
+
+              <div className="pt-4 border-t space-y-3">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Custom Domains</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Main App</p>
+                    <p className="font-medium">{selectedOrg.main_app_domain || "Not configured"}</p>
+                  </div>
+                  {(selectedOrg.active_plan_details || []).map((plan) => (
+                    <div key={plan.subscription_id || plan.plan_id}>
+                      <p className="text-xs text-muted-foreground">{plan.product_name || plan.product_key || plan.plan_name || "Product"}</p>
+                      <p className="font-medium">{plan.custom_domain || plan.domain || "Not configured"}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Database</p>
+                      <p className="font-medium">{plan.database || "Not configured"}</p>
+                    </div>
+                  ))}
+                  {(selectedOrg.active_plan_details || []).length === 0 && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Products</p>
+                      <p className="font-medium">No active subscriptions</p>
+                    </div>
+                  )}
+                </div>
+              </div>
 
               {selectedOrg.rejection_reason && (
                 <div className="pt-4 border-t">
@@ -946,6 +1006,7 @@ export default function OrganizationsPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <CreateInput label="Organization Email" type="email" value={editData.email} onChange={(value) => setEditData({ ...editData, email: value })} required />
               <CreateInput label="Domain" placeholder="example.com" value={editData.domain} onChange={(value) => setEditData({ ...editData, domain: value })} required />
+              <CreateInput label="Main App Custom Domain" placeholder="app.customer.com" value={editData.main_app_domain} onChange={(value) => setEditData({ ...editData, main_app_domain: value })} />
               <CreateInput label="Contact Person" value={editData.contact_person} onChange={(value) => setEditData({ ...editData, contact_person: value })} required />
               <CreateInput label="Contact Phone" value={editData.phone} onChange={(value) => setEditData({ ...editData, phone: value })} required />
               <div className="space-y-2 md:col-span-2">
@@ -961,6 +1022,50 @@ export default function OrganizationsPage() {
             </div>
 
             <OnboardingFormSections sections={organizationSections} formData={editData} onChange={setEditData} />
+
+            <section className="space-y-3">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Product Custom Domains</h3>
+              {(selectedOrg?.active_plan_details || []).length === 0 ? (
+                <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                  Product domains can be added after the organization has active subscriptions.
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {(selectedOrg?.active_plan_details || []).filter((plan) => plan.subscription_id).map((plan) => (
+                    <div key={plan.subscription_id || plan.plan_id} className="space-y-3">
+                      <CreateInput
+                        label={`${plan.product_name || plan.product_key || plan.plan_name || "Product"} Custom Domain`}
+                        placeholder="product.customer.com"
+                        value={editData.product_domains?.[plan.subscription_id] || ""}
+                        onChange={(value) =>
+                          setEditData({
+                            ...editData,
+                            product_domains: {
+                              ...(editData.product_domains || {}),
+                              [plan.subscription_id]: value,
+                            },
+                          })
+                        }
+                      />
+                      <CreateInput
+                        label={`${plan.product_name || plan.product_key || plan.plan_name || "Product"} Database`}
+                        placeholder="database_name"
+                        value={editData.product_databases?.[plan.subscription_id] || ""}
+                        onChange={(value) =>
+                          setEditData({
+                            ...editData,
+                            product_databases: {
+                              ...(editData.product_databases || {}),
+                              [plan.subscription_id]: value,
+                            },
+                          })
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
 
             <section className="space-y-3">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Integration</h3>
