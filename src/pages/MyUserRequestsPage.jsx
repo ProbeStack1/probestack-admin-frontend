@@ -71,17 +71,23 @@ export default function MyUserRequestsPage() {
   };
 
   const handleApprove = async () => {
-    if (!approveDialog.request || !selectedRole || !selectedBusinessUnit || !selectedTeam) {
-      toast.error("Please select role, Business unit, and Project");
+    if (!approveDialog.request || !selectedRole) {
+      toast.error("Please select a role");
       return;
     }
     try {
-      await myOrganizationApi.approveUserRequest(approveDialog.request.id, {
+      const approvalParams = {
         role_id: selectedRole,
-        business_unit_id: selectedBusinessUnit,
-        project_id: selectedTeam,
-        project_role: selectedTeamRole,
-      });
+      };
+      if (selectedBusinessUnit) {
+        approvalParams.business_unit_id = selectedBusinessUnit;
+      }
+      if (selectedTeam) {
+        approvalParams.project_id = selectedTeam;
+        approvalParams.project_role = selectedTeamRole;
+      }
+
+      await myOrganizationApi.approveUserRequest(approveDialog.request.id, approvalParams);
       toast.success("User request approved");
       fetchData();
     } catch (error) {
@@ -280,7 +286,7 @@ export default function MyUserRequestsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setApproveDialog({ open: false, request: null })}>Cancel</Button>
-            <Button onClick={handleApprove} disabled={!selectedRole || !selectedBusinessUnit || !selectedTeam}>Approve User</Button>
+            <Button onClick={handleApprove} disabled={!selectedRole}>Approve User</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
