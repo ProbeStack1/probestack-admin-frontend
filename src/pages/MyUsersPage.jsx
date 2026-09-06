@@ -30,19 +30,57 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 import { myOrganizationApi } from "../lib/api";
 import { toast } from "sonner";
 import { Edit, Users, Search, Trash2, Plus } from "lucide-react";
 import { getErrorMessage } from "../lib/utils";
 import PaginationControls, { usePagination } from "../components/PaginationControls";
 
+const productRoleCodes = [
+  "ORG_ADMIN",
+  "BUSINESS_UNIT_OWNER",
+  "BUSINESS_UNIT_ADMIN",
+  "PROJECT_ADMIN",
+  "APPLICATION_OWNER",
+  "APPLICATION_MEMBER",
+  "API_AGENT_CONSUMER",
+];
+
+const scopeTypes = ["ORGANIZATION", "BUSINESS_UNIT", "PROJECT", "APPLICATION"];
+const organizationScopeValue = "__organization__";
+
+const emptyProductRoleForm = {
+  roleCode: "PROJECT_ADMIN",
+  scopeType: "PROJECT",
+  scopeId: "",
+  active: true,
+};
+
 export default function MyUsersPage() {
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
+  const [organization, setOrganization] = useState(null);
+  const [businessUnits, setBusinessUnits] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [roleAssignments, setRoleAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [deleteDialog, setDeleteDialog] = useState({ open: false, user: null });
   const [roleDialog, setRoleDialog] = useState({ open: false, user: null, roleIds: [] });
+  const [productRoleDialog, setProductRoleDialog] = useState({
+    open: false,
+    user: null,
+    assignment: null,
+    values: emptyProductRoleForm,
+  });
+  const [productRoleDeleteDialog, setProductRoleDeleteDialog] = useState({ open: false, assignment: null });
 
   useEffect(() => {
     fetchUsers();
@@ -50,12 +88,27 @@ export default function MyUsersPage() {
 
   const fetchUsers = async () => {
     try {
-      const [usersResponse, rolesResponse] = await Promise.all([
+      const [
+        usersResponse,
+        rolesResponse,
+        organizationResponse,
+        businessUnitsResponse,
+        projectsResponse,
+        roleAssignmentsResponse,
+      ] = await Promise.all([
         myOrganizationApi.getUsers(),
         myOrganizationApi.getRoles(),
+        myOrganizationApi.getOrganization(),
+        myOrganizationApi.getBusinessUnits(),
+        myOrganizationApi.getProjects(),
+        myOrganizationApi.getRoleAssignments(),
       ]);
-      setUsers(usersResponse.data);
+      setUsers(usersResponse.data || []);
       setRoles(rolesResponse.data || []);
+      setOrganization(organizationResponse.data || null);
+      setBusinessUnits(businessUnitsResponse.data || []);
+      setProjects(projectsResponse.data || []);
+      setRoleAssignments(roleAssignmentsResponse.data || []);
     } catch (error) {
       toast.error("Failed to load users");
     } finally {
@@ -96,17 +149,154 @@ export default function MyUsersPage() {
   const usersPagination = usePagination(filteredUsers);
 
   const getAssignedRoleIds = (user) => {
+    if (Array.isArray(user?.admin_role_ids) && user.admin_role_ids.length > 0) {
+      return user.admin_role_ids;
+    }
     if (Array.isArray(user?.role_ids) && user.role_ids.length > 0) {
       return user.role_ids;
     }
     return user?.role_id ? [user.role_id] : [];
   };
 
+  const openProductRoleDialog = (user, assignment = null) => {
+    setProductRoleDialog({
+      open: true,
+      user,
+      assignment,
+      values: assignment
+        ? {
+            roleCode: assignment.role_code || assignment.roleCode || "PROJECT_ADMIN",
+            scopeType: assignment.scope_type || assignment.scopeType || "PROJECT",
+            scopeId: assignment.scope_id || assignment.scopeId || "",
+            active: assignment.active !== false,
+          }
+        : {
+            ...emptyProductRoleForm,
+            scopeId: projects[0]?.id || "",
+          },
+    });
+  };
+
+  const closeProductRoleDialog = () => {
+    setProductRoleDialog({ open: false, user: null, assignment: null, values: emptyProductRoleForm });
+  };
+
+  const updateProductRoleValue = (field, value) => {
+    setProductRoleDialog((current) => ({
+      ...current,
+      values: {
+        ...current.values,
+        [field]: value,
+        ...(field === "scopeType" ? { scopeId: getDefaultScopeId(value) } : {}),
+      },
+    }));
+  };
+
+  const getDefaultScopeId = (scopeType) => {
+    if (scopeType === "ORGANIZATION") return organization?.id || organizationScopeValue;
+    if (scopeType === "BUSINESS_UNIT") return businessUnits[0]?.id || "";
+    if (scopeType === "PROJECT") return projects[0]?.id || "";
+    return "";
+  };
+
+  const handleSaveProductRole = async () => {
+    if (!productRoleDialog.user) return;
+    const values = productRoleDialog.values;
+    if (!values.roleCode || !values.scopeType || !values.scopeId) {
+      toast.error("Role, scope type, and scope are required");
+      return;
+    }
+
+    try {
+      if (productRoleDialog.assignment) {
+        await myOrganizationApi.updateRoleAssignment(productRoleDialog.assignment.id, {
+          active: values.active,
+          validFrom: null,
+          validTo: null,
+        });
+        toast.success("Product role assignment updated");
+      } else {
+        await myOrganizationApi.createRoleAssignment({
+          principalId: productRoleDialog.user.id,
+          principalEmail: productRoleDialog.user.email,
+          principalName: productRoleDialog.user.name,
+          roleKind: "ACCESS",
+          roleCode: values.roleCode,
+          scopeType: values.scopeType,
+          scopeId: values.scopeId === organizationScopeValue ? organization?.id : values.scopeId,
+        });
+        toast.success("Product role assignment created");
+      }
+      closeProductRoleDialog();
+      fetchUsers();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to save product role assignment"));
+    }
+  };
+
+  const handleDeleteProductRole = async () => {
+    if (!productRoleDeleteDialog.assignment) return;
+    try {
+      await myOrganizationApi.deleteRoleAssignment(productRoleDeleteDialog.assignment.id);
+      toast.success("Product role assignment deleted");
+      fetchUsers();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to delete product role assignment"));
+    } finally {
+      setProductRoleDeleteDialog({ open: false, assignment: null });
+    }
+  };
+
   const getAssignedRoleNames = (user) => {
+    if (Array.isArray(user?.admin_role_names) && user.admin_role_names.length > 0) {
+      return user.admin_role_names;
+    }
     if (Array.isArray(user?.role_names) && user.role_names.length > 0) {
       return user.role_names;
     }
     return user?.role_name ? [user.role_name] : [];
+  };
+
+  const getProductRoleNames = (user) => {
+    if (Array.isArray(user?.product_role_names) && user.product_role_names.length > 0) {
+      return user.product_role_names;
+    }
+    return [];
+  };
+
+  const getDirectProductAssignments = (user) => {
+    const userEmail = user?.email?.toLowerCase();
+    const userId = String(user?.id || "").toLowerCase();
+    return roleAssignments.filter((assignment) => {
+      const principalEmail = (assignment.principal_email || assignment.principalEmail || "").toLowerCase();
+      const principalId = String(assignment.principal_id || assignment.principalId || "").toLowerCase();
+      return (userEmail && principalEmail === userEmail) || (userId && principalId === userId);
+    });
+  };
+
+  const formatProductAssignment = (assignment) => {
+    const roleCode = assignment.role_code || assignment.roleCode || "ROLE";
+    const scopeType = assignment.scope_type || assignment.scopeType || "SCOPE";
+    return `${roleCode} / ${scopeType}`;
+  };
+
+  const getScopeOptions = (scopeType) => {
+    if (scopeType === "ORGANIZATION") {
+      return organization?.id ? [{ id: organization.id, name: organization.name || "Organization" }] : [];
+    }
+    if (scopeType === "BUSINESS_UNIT") {
+      return businessUnits.map((businessUnit) => ({
+        id: businessUnit.id,
+        name: businessUnit.display_name || businessUnit.name || businessUnit.id,
+      }));
+    }
+    if (scopeType === "PROJECT") {
+      return projects.map((project) => ({
+        id: project.id,
+        name: project.name || project.id,
+      }));
+    }
+    return [];
   };
 
   const addDialogRole = (roleId) => {
@@ -163,42 +353,84 @@ export default function MyUsersPage() {
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
+                    <TableHead>Admin Panel Role</TableHead>
+                    <TableHead>Product API Role</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {usersPagination.pageItems.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.name}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1.5">
-                          {getAssignedRoleNames(user).map((roleName) => (
-                            <Badge key={roleName} variant="secondary" className="max-w-[220px]">
-                              <span className="truncate">{roleName}</span>
-                            </Badge>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={user.status === "active" ? "status-active" : "status-inactive"}>{user.status}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setRoleDialog({ open: true, user, roleIds: getAssignedRoleIds(user) })}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setDeleteDialog({ open: true, user })}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {usersPagination.pageItems.map((user) => {
+                    const directAssignments = getDirectProductAssignments(user);
+                    return (
+                      <TableRow key={user.id}>
+                        <TableCell className="font-medium">{user.name}</TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1.5">
+                            {getAssignedRoleNames(user).map((roleName) => (
+                              <Badge key={roleName} variant="secondary" className="max-w-[220px]">
+                                <span className="truncate">{roleName}</span>
+                              </Badge>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-2">
+                            <div className="flex flex-wrap gap-1.5">
+                              {getProductRoleNames(user).length > 0 ? (
+                                getProductRoleNames(user).map((roleName) => (
+                                  <Badge key={roleName} variant="outline" className="max-w-[220px]">
+                                    <span className="truncate">{roleName}</span>
+                                  </Badge>
+                                ))
+                              ) : (
+                                <span className="text-sm text-muted-foreground">Not assigned</span>
+                              )}
+                            </div>
+                            {directAssignments.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5">
+                                {directAssignments.map((assignment) => (
+                                  <Badge key={assignment.id} variant="secondary" className="gap-1.5">
+                                    <span>{formatProductAssignment(assignment)}</span>
+                                    <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => openProductRoleDialog(user, assignment)}>
+                                      <Edit className="h-3 w-3" />
+                                      <span className="sr-only">Edit product role assignment</span>
+                                    </button>
+                                    <button type="button" className="text-destructive hover:text-destructive" onClick={() => setProductRoleDeleteDialog({ open: true, assignment })}>
+                                      <Trash2 className="h-3 w-3" />
+                                      <span className="sr-only">Delete product role assignment</span>
+                                    </button>
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={user.status === "active" ? "status-active" : "status-inactive"}>{user.status}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setRoleDialog({ open: true, user, roleIds: getAssignedRoleIds(user) })}
+                          >
+                            <Edit className="h-4 w-4" />
+                            <span className="sr-only">Edit admin panel roles</span>
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => openProductRoleDialog(user)}>
+                            <Plus className="h-4 w-4" />
+                            <span className="sr-only">Add product role</span>
+                          </Button>
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setDeleteDialog({ open: true, user })}>
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Remove user</span>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -284,6 +516,113 @@ export default function MyUsersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={productRoleDialog.open} onOpenChange={(open) => (open ? null : closeProductRoleDialog())}>
+        <DialogContent data-testid="my-user-product-role-dialog">
+          <DialogHeader>
+            <DialogTitle>{productRoleDialog.assignment ? "Edit Product Role" : "Add Product Role"}</DialogTitle>
+            <DialogDescription>
+              {productRoleDialog.assignment ? "Update direct onboarding role assignment status." : `Create an onboarding role assignment for ${productRoleDialog.user?.name}.`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Role</Label>
+                <Select
+                  value={productRoleDialog.values.roleCode}
+                  onValueChange={(value) => updateProductRoleValue("roleCode", value)}
+                  disabled={Boolean(productRoleDialog.assignment)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {productRoleCodes.map((roleCode) => (
+                      <SelectItem key={roleCode} value={roleCode}>{roleCode}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Scope Type</Label>
+                <Select
+                  value={productRoleDialog.values.scopeType}
+                  onValueChange={(value) => updateProductRoleValue("scopeType", value)}
+                  disabled={Boolean(productRoleDialog.assignment)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {scopeTypes.map((scopeType) => (
+                      <SelectItem key={scopeType} value={scopeType}>{scopeType}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Scope</Label>
+              {getScopeOptions(productRoleDialog.values.scopeType).length > 0 ? (
+                <Select
+                  value={productRoleDialog.values.scopeId}
+                  onValueChange={(value) => updateProductRoleValue("scopeId", value)}
+                  disabled={Boolean(productRoleDialog.assignment)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select scope" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getScopeOptions(productRoleDialog.values.scopeType).map((option) => (
+                      <SelectItem key={option.id} value={option.id}>{option.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  value={productRoleDialog.values.scopeId}
+                  onChange={(event) => updateProductRoleValue("scopeId", event.target.value)}
+                  disabled={Boolean(productRoleDialog.assignment)}
+                />
+              )}
+            </div>
+            {productRoleDialog.assignment && (
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={productRoleDialog.values.active ? "active" : "inactive"} onValueChange={(value) => updateProductRoleValue("active", value === "active")}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeProductRoleDialog}>Cancel</Button>
+            <Button onClick={handleSaveProductRole}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={productRoleDeleteDialog.open} onOpenChange={(open) => setProductRoleDeleteDialog({ open, assignment: open ? productRoleDeleteDialog.assignment : null })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Product Role</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete <strong>{formatProductAssignment(productRoleDeleteDialog.assignment || {})}</strong> from onboarding?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteProductRole} className="bg-destructive text-destructive-foreground">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ open, user: null })}>
         <AlertDialogContent>

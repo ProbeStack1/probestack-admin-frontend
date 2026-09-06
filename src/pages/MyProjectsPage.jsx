@@ -4,6 +4,26 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Textarea } from "../components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -19,29 +39,24 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "../components/ui/dialog";
 import { myOrganizationApi } from "../lib/api";
 import { toast } from "sonner";
-import { Edit, Package, Plus, Search, UserPlus } from "lucide-react";
+import { Package, Pencil, Plus, Search, Trash2, UserPlus } from "lucide-react";
 import { format } from "date-fns";
 import { getErrorMessage } from "../lib/utils";
 import OrganizationTabs from "../components/OrganizationTabs";
-import OnboardingFormSections from "../components/OnboardingFormSections";
 import PaginationControls, { usePagination } from "../components/PaginationControls";
-import { buildInitialData, buildPayloadFromData, projectSections } from "../lib/onboardingFields";
 
 const unassignedBusinessUnit = "__unassigned__";
 
-const emptyProject = {
-  ...buildInitialData(projectSections),
-  status: "active",
+const emptyProjectForm = {
+  businessUnitId: "",
+  name: "",
+  code: "",
+  ownerName: "",
+  ownerEmail: "",
+  description: "",
+  status: "READY",
 };
 
 const getMemberName = (member) => member.name || member.user?.name || member.email?.split("@")[0] || "-";
@@ -63,13 +78,12 @@ export default function MyProjectsPage() {
   const [teamMembers, setTeamMembers] = useState([]);
   const [businessUnits, setBusinessUnits] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [teamSearch, setTeamSearch] = useState("");
   const [businessUnitFilter, setBusinessUnitFilter] = useState("all");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingProject, setEditingProject] = useState(null);
-  const [formData, setFormData] = useState(emptyProject);
-  const [processing, setProcessing] = useState(false);
+  const [formDialog, setFormDialog] = useState({ open: false, project: null, values: emptyProjectForm });
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, project: null });
 
   useEffect(() => {
     fetchPageData();
@@ -77,7 +91,7 @@ export default function MyProjectsPage() {
 
   const businessUnitNameById = useMemo(() => {
     return businessUnits.reduce((lookup, businessUnit) => {
-      lookup[businessUnit.id] = businessUnit.name;
+      lookup[businessUnit.id] = businessUnit.display_name || businessUnit.name;
       return lookup;
     }, {});
   }, [businessUnits]);
@@ -89,69 +103,106 @@ export default function MyProjectsPage() {
         myOrganizationApi.getBusinessUnits(),
         myOrganizationApi.getProjectTeamMembers(),
       ]);
-      setProjects(projectsResponse.data);
-      setBusinessUnits(businessUnitsResponse.data);
-      setTeamMembers(teamMembersResponse.data);
+      setProjects(projectsResponse.data || []);
+      setBusinessUnits(businessUnitsResponse.data || []);
+      setTeamMembers(teamMembersResponse.data || []);
     } catch (error) {
-      toast.error("Failed to load projects and business units");
+      toast.error(getErrorMessage(error, "Failed to load projects and business units"));
     } finally {
       setLoading(false);
     }
   };
 
-  const openCreateDialog = () => {
-    setEditingProject(null);
-    setFormData(emptyProject);
-    setDialogOpen(true);
-  };
-
-  const openEditDialog = (project) => {
-    setEditingProject(project);
-    setFormData({
-      ...buildInitialData(projectSections, project),
-      status: project.status || "active",
+  const openFormDialog = (project = null) => {
+    setFormDialog({
+      open: true,
+      project,
+      values: project
+        ? {
+            businessUnitId: project.business_unit_id || project.businessUnitId || "",
+            name: project.name || "",
+            code: project.code || "",
+            ownerName: project.owner_name || project.ownerName || "",
+            ownerEmail: project.owner_email || project.ownerEmail || "",
+            description: project.description || "",
+            status: (project.status || "READY").toUpperCase(),
+          }
+        : { ...emptyProjectForm },
     });
-    setDialogOpen(true);
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setProcessing(true);
+  const updateFormValue = (field, value) => {
+    setFormDialog((current) => ({
+      ...current,
+      values: { ...current.values, [field]: value },
+    }));
+  };
 
-    const payload = buildPayloadFromData(projectSections, formData);
+  const closeFormDialog = () => {
+    setFormDialog({ open: false, project: null, values: emptyProjectForm });
+  };
 
+  const handleSaveProject = async () => {
+    const values = formDialog.values;
+    if (!values.businessUnitId || !values.name.trim() || !values.code.trim()) {
+      toast.error("Business unit, name, and code are required");
+      return;
+    }
+
+    setSaving(true);
     try {
-      if (editingProject) {
-        await myOrganizationApi.updateProject(editingProject.id, payload);
-        toast.success("Project updated successfully");
+      const payload = {
+        businessUnitId: values.businessUnitId,
+        name: values.name.trim(),
+        code: values.code.trim(),
+        ownerName: values.ownerName.trim() || undefined,
+        ownerEmail: values.ownerEmail.trim() || undefined,
+        description: values.description.trim() || undefined,
+        status: values.status,
+      };
+      if (formDialog.project) {
+        await myOrganizationApi.updateProject(formDialog.project.id, payload);
+        toast.success("Project updated");
       } else {
         await myOrganizationApi.createProject(payload);
-        toast.success("Project onboarded successfully");
+        toast.success("Project created");
       }
-
-      setDialogOpen(false);
-      setFormData(emptyProject);
-      setEditingProject(null);
-      fetchPageData();
+      closeFormDialog();
+      await fetchPageData();
     } catch (error) {
       toast.error(getErrorMessage(error, "Failed to save project"));
     } finally {
-      setProcessing(false);
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    if (!deleteDialog.project) return;
+    try {
+      await myOrganizationApi.deleteProject(deleteDialog.project.id);
+      toast.success("Project deleted");
+      await fetchPageData();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to delete project"));
+    } finally {
+      setDeleteDialog({ open: false, project: null });
     }
   };
 
   const filteredProjects = projects.filter((project) => {
     const term = search.toLowerCase();
+    const businessUnitId = project.business_unit_id || project.businessUnitId;
     const matchesSearch =
       project.name?.toLowerCase().includes(term) ||
       project.code?.toLowerCase().includes(term) ||
       project.description?.toLowerCase().includes(term) ||
-      businessUnitNameById[project.business_unit_id]?.toLowerCase().includes(term);
+      project.owner_name?.toLowerCase().includes(term) ||
+      businessUnitNameById[businessUnitId]?.toLowerCase().includes(term);
 
     if (!matchesSearch) return false;
     if (businessUnitFilter === "all") return true;
-    if (businessUnitFilter === unassignedBusinessUnit) return !project.business_unit_id;
-    return project.business_unit_id === businessUnitFilter;
+    if (businessUnitFilter === unassignedBusinessUnit) return !businessUnitId;
+    return businessUnitId === businessUnitFilter;
   });
 
   const filteredTeamMembers = teamMembers.filter((member) => {
@@ -176,14 +227,14 @@ export default function MyProjectsPage() {
   return (
     <div className="space-y-6" data-testid="my-projects-page">
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row justify-between gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Project</h1>
-            <p className="text-muted-foreground mt-1">View project members across business units and applications</p>
+            <p className="text-muted-foreground mt-1">Manage projects and view project members</p>
           </div>
-          <Button onClick={openCreateDialog}>
+          <Button onClick={() => openFormDialog()} className="w-full sm:w-auto" disabled={businessUnits.length === 0}>
             <Plus className="mr-2 h-4 w-4" />
-            Onboard Project
+            Add Project
           </Button>
         </div>
         <OrganizationTabs />
@@ -210,7 +261,7 @@ export default function MyProjectsPage() {
         <CardContent>
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
             </div>
           ) : filteredTeamMembers.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
@@ -225,7 +276,6 @@ export default function MyProjectsPage() {
                     <TableHead>Role</TableHead>
                     <TableHead>Business Unit</TableHead>
                     <TableHead>Application</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -251,17 +301,6 @@ export default function MyProjectsPage() {
                         {member.business_unit_name || member.business_unit?.name || member.project?.name || "-"}
                       </TableCell>
                       <TableCell>{member.application_name || member.business_unit?.application_name || "-"}</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-primary"
-                          onClick={() => navigate("/onboard-bu")}
-                        >
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit Business unit
-                        </Button>
-                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -280,7 +319,7 @@ export default function MyProjectsPage() {
                 <Package className="h-5 w-5" />
                 Projects ({filteredProjects.length})
               </CardTitle>
-              <CardDescription>Projects can be linked to a Business unit or kept unassigned</CardDescription>
+              <CardDescription>Create, update, and delete onboarding projects</CardDescription>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative w-full sm:w-72">
@@ -301,7 +340,7 @@ export default function MyProjectsPage() {
                   <SelectItem value={unassignedBusinessUnit}>Unassigned</SelectItem>
                   {businessUnits.map((businessUnit) => (
                     <SelectItem key={businessUnit.id} value={businessUnit.id}>
-                      {businessUnit.name}
+                      {businessUnit.display_name || businessUnit.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -312,7 +351,7 @@ export default function MyProjectsPage() {
         <CardContent>
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
             </div>
           ) : filteredProjects.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
@@ -324,54 +363,65 @@ export default function MyProjectsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Project</TableHead>
-                    <TableHead>Business unit</TableHead>
-                    <TableHead>Code</TableHead>
+                    <TableHead>Business Unit</TableHead>
+                    <TableHead>Owner</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {projectsPagination.pageItems.map((project) => (
-                    <TableRow key={project.id}>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{project.name}</p>
-                          {project.description && (
-                            <p className="text-xs text-muted-foreground line-clamp-1">{project.description}</p>
+                  {projectsPagination.pageItems.map((project) => {
+                    const businessUnitId = project.business_unit_id || project.businessUnitId;
+                    return (
+                      <TableRow key={project.id}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{project.name}</p>
+                            <div className="mt-1 flex flex-wrap items-center gap-2">
+                              {project.code && <Badge variant="outline" className="font-mono text-xs">{project.code}</Badge>}
+                              {project.description && <span className="text-xs text-muted-foreground line-clamp-1">{project.description}</span>}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {businessUnitId ? businessUnitNameById[businessUnitId] || "Unknown Business unit" : (
+                            <span className="text-xs text-muted-foreground">Unassigned</span>
                           )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {project.business_unit_id ? businessUnitNameById[project.business_unit_id] || "Unknown Business unit" : (
-                          <span className="text-xs text-muted-foreground">Unassigned</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {project.code ? (
-                          <Badge variant="outline" className="font-mono text-xs">{project.code}</Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">Not set</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={project.status === "active" ? "status-active" : "status-inactive"}>
-                          {project.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {project.created_at ? format(new Date(project.created_at), "MMM d, yyyy") : "-"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => navigate(`/onboard-project/${project.id}/team`)}>
-                          <UserPlus className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(project)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        </TableCell>
+                        <TableCell>{project.owner_name || project.ownerName || "-"}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={project.status === "active" || project.status === "ready" ? "status-active" : "status-inactive"}>
+                            {project.status || "unknown"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {project.created_at ? format(new Date(project.created_at), "MMM d, yyyy") : "-"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => navigate(`/onboard-project/${project.id}/team`)}>
+                              <UserPlus className="h-4 w-4" />
+                              <span className="sr-only">Manage project team</span>
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => openFormDialog(project)}>
+                              <Pencil className="h-4 w-4" />
+                              <span className="sr-only">Edit project</span>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => setDeleteDialog({ open: true, project })}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Delete project</span>
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -380,32 +430,85 @@ export default function MyProjectsPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl">
+      <Dialog open={formDialog.open} onOpenChange={(open) => (open ? null : closeFormDialog())}>
+        <DialogContent className="sm:max-w-2xl" data-testid="project-form-dialog">
           <DialogHeader>
-            <DialogTitle>{editingProject ? "Edit Project" : "Onboard Project"}</DialogTitle>
-            <DialogDescription>
-              {editingProject ? "Update project details." : "Add a project for your approved organization."}
-            </DialogDescription>
+            <DialogTitle>{formDialog.project ? "Edit Project" : "Add Project"}</DialogTitle>
+            <DialogDescription>{formDialog.project ? "Update onboarding project details." : "Create an onboarding project under a business unit."}</DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <OnboardingFormSections
-              sections={projectSections}
-              formData={formData}
-              onChange={setFormData}
-              businessUnits={businessUnits}
-            />
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={processing}>
-                {processing ? "Saving..." : editingProject ? "Save Changes" : "Onboard Project"}
-              </Button>
-            </DialogFooter>
-          </form>
+          <div className="grid gap-4 py-2 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Business Unit</Label>
+              <Select value={formDialog.values.businessUnitId} onValueChange={(value) => updateFormValue("businessUnitId", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select business unit" />
+                </SelectTrigger>
+                <SelectContent>
+                  {businessUnits.map((businessUnit) => (
+                    <SelectItem key={businessUnit.id} value={businessUnit.id}>
+                      {businessUnit.display_name || businessUnit.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <FormField label="Name" value={formDialog.values.name} onChange={(value) => updateFormValue("name", value)} />
+            <FormField label="Code" value={formDialog.values.code} onChange={(value) => updateFormValue("code", value)} />
+            <FormField label="Owner Name" value={formDialog.values.ownerName} onChange={(value) => updateFormValue("ownerName", value)} />
+            <FormField label="Owner Email" value={formDialog.values.ownerEmail} onChange={(value) => updateFormValue("ownerEmail", value)} />
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={formDialog.values.status} onValueChange={(value) => updateFormValue("status", value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="READY">Ready</SelectItem>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="INACTIVE">Inactive</SelectItem>
+                  <SelectItem value="ARCHIVED">Archived</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Description</Label>
+              <Textarea value={formDialog.values.description} onChange={(event) => updateFormValue("description", event.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeFormDialog} disabled={saving}>Cancel</Button>
+            <Button onClick={handleSaveProject} disabled={saving}>
+              {saving ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ open, project: open ? deleteDialog.project : null })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Project</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete <strong>{deleteDialog.project?.name}</strong> from onboarding?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteProject} className="bg-destructive text-destructive-foreground">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+function FormField({ label, value, onChange }) {
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <Input value={value} onChange={(event) => onChange(event.target.value)} />
     </div>
   );
 }

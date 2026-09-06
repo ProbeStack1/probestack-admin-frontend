@@ -32,11 +32,12 @@ export const AuthProvider = ({ children }) => {
         try {
           const response = await api.get("/auth/me");
           setAdmin(response.data);
-        } catch (error) {
-          console.error("Auth init error:", error);
-          localStorage.removeItem("token");
-          setToken(null);
-        }
+      } catch (error) {
+        console.error("Auth init error:", error);
+        localStorage.removeItem("token");
+        localStorage.removeItem("contextToken");
+        setToken(null);
+      }
       }
       setLoading(false);
     };
@@ -46,9 +47,15 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     const response = await api.post("/auth/login", { email, password });
-    const { token: newToken, admin: adminData } = response.data;
+    const { token: newToken, contextToken, context_token: contextTokenAlias, admin: adminData } = response.data;
+    const newContextToken = contextToken || contextTokenAlias;
     
     localStorage.setItem("token", newToken);
+    if (newContextToken) {
+      localStorage.setItem("contextToken", newContextToken);
+    } else {
+      localStorage.removeItem("contextToken");
+    }
     setToken(newToken);
     setAdmin(adminData);
     
@@ -57,9 +64,15 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (email, password, name) => {
     const response = await api.post("/auth/register", { email, password, name });
-    const { token: newToken, admin: adminData } = response.data;
+    const { token: newToken, contextToken, context_token: contextTokenAlias, admin: adminData } = response.data;
+    const newContextToken = contextToken || contextTokenAlias;
     
     localStorage.setItem("token", newToken);
+    if (newContextToken) {
+      localStorage.setItem("contextToken", newContextToken);
+    } else {
+      localStorage.removeItem("contextToken");
+    }
     setToken(newToken);
     setAdmin(adminData);
     
@@ -68,6 +81,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("contextToken");
     setToken(null);
     setAdmin(null);
   };

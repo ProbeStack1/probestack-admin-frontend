@@ -3,6 +3,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Textarea } from "../components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -11,15 +23,30 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 import { myOrganizationApi } from "../lib/api";
 import { toast } from "sonner";
-import { Building2, Edit, Plus, Search } from "lucide-react";
+import { Building2, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { getErrorMessage } from "../lib/utils";
 import OrganizationTabs from "../components/OrganizationTabs";
-import OnboardingFormSections from "../components/OnboardingFormSections";
-import { buildInitialData, buildPayloadFromData, businessUnitSections } from "../lib/onboardingFields";
 import PaginationControls, { usePagination } from "../components/PaginationControls";
+
+const emptyBusinessUnitForm = {
+  name: "",
+  code: "",
+  displayName: "",
+  ownerName: "",
+  ownerEmail: "",
+  description: "",
+  status: "ACTIVE",
+};
 
 const statusClasses = {
   active: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
@@ -30,11 +57,10 @@ const statusClasses = {
 export default function MyBusinessUnitsPage() {
   const [businessUnits, setBusinessUnits] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingBusinessUnit, setEditingBusinessUnit] = useState(null);
-  const [formData, setFormData] = useState(buildInitialData(businessUnitSections));
-  const [processing, setProcessing] = useState(false);
+  const [formDialog, setFormDialog] = useState({ open: false, businessUnit: null, values: emptyBusinessUnitForm });
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, businessUnit: null });
 
   useEffect(() => {
     fetchBusinessUnits();
@@ -43,50 +69,87 @@ export default function MyBusinessUnitsPage() {
   const fetchBusinessUnits = async () => {
     try {
       const response = await myOrganizationApi.getBusinessUnits({ include_projects: true });
-      setBusinessUnits(response.data);
+      setBusinessUnits(response.data || []);
     } catch (error) {
-      toast.error("Failed to load business units");
+      toast.error(getErrorMessage(error, "Failed to load business units"));
     } finally {
       setLoading(false);
     }
   };
 
-  const openCreateDialog = () => {
-    setEditingBusinessUnit(null);
-    setFormData(buildInitialData(businessUnitSections));
-    setDialogOpen(true);
+  const openFormDialog = (businessUnit = null) => {
+    setFormDialog({
+      open: true,
+      businessUnit,
+      values: businessUnit
+        ? {
+            name: businessUnit.name || "",
+            code: businessUnit.code || "",
+            displayName: businessUnit.display_name || businessUnit.displayName || "",
+            ownerName: businessUnit.owner_name || businessUnit.ownerName || "",
+            ownerEmail: businessUnit.owner_email || businessUnit.ownerEmail || "",
+            description: businessUnit.description || "",
+            status: (businessUnit.status || "ACTIVE").toUpperCase(),
+          }
+        : { ...emptyBusinessUnitForm },
+    });
   };
 
-  const openEditDialog = (businessUnit) => {
-    setEditingBusinessUnit(businessUnit);
-    setFormData(buildInitialData(businessUnitSections, businessUnit));
-    setDialogOpen(true);
+  const updateFormValue = (field, value) => {
+    setFormDialog((current) => ({
+      ...current,
+      values: { ...current.values, [field]: value },
+    }));
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setProcessing(true);
-    const payload = {
-      ...buildPayloadFromData(businessUnitSections, formData),
-      status: editingBusinessUnit?.status || "active",
-    };
+  const closeFormDialog = () => {
+    setFormDialog({ open: false, businessUnit: null, values: emptyBusinessUnitForm });
+  };
 
+  const handleSaveBusinessUnit = async () => {
+    const values = formDialog.values;
+    if (!values.name.trim() || !values.code.trim()) {
+      toast.error("Name and code are required");
+      return;
+    }
+
+    setSaving(true);
     try {
-      if (editingBusinessUnit) {
-        await myOrganizationApi.updateBusinessUnit(editingBusinessUnit.id, payload);
-        toast.success("Business unit updated successfully");
+      const payload = {
+        name: values.name.trim(),
+        code: values.code.trim(),
+        displayName: values.displayName.trim() || values.name.trim(),
+        ownerName: values.ownerName.trim() || undefined,
+        ownerEmail: values.ownerEmail.trim() || undefined,
+        description: values.description.trim() || undefined,
+        status: values.status,
+      };
+      if (formDialog.businessUnit) {
+        await myOrganizationApi.updateBusinessUnit(formDialog.businessUnit.id, payload);
+        toast.success("Business unit updated");
       } else {
         await myOrganizationApi.createBusinessUnit(payload);
-        toast.success("Business unit onboarded successfully");
+        toast.success("Business unit created");
       }
-      setDialogOpen(false);
-      setEditingBusinessUnit(null);
-      setFormData(buildInitialData(businessUnitSections));
-      fetchBusinessUnits();
+      closeFormDialog();
+      await fetchBusinessUnits();
     } catch (error) {
       toast.error(getErrorMessage(error, "Failed to save business unit"));
     } finally {
-      setProcessing(false);
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteBusinessUnit = async () => {
+    if (!deleteDialog.businessUnit) return;
+    try {
+      await myOrganizationApi.deleteBusinessUnit(deleteDialog.businessUnit.id);
+      toast.success("Business unit deleted");
+      await fetchBusinessUnits();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to delete business unit"));
+    } finally {
+      setDeleteDialog({ open: false, businessUnit: null });
     }
   };
 
@@ -97,13 +160,9 @@ export default function MyBusinessUnitsPage() {
       businessUnit.code,
       businessUnit.display_name,
       businessUnit.description,
-      businessUnit.division,
-      businessUnit.department,
-      businessUnit.line_of_business,
       businessUnit.owner_name,
-      businessUnit.cost_center,
-      businessUnit.cloud_provider,
-      businessUnit.region,
+      businessUnit.owner_email,
+      businessUnit.status,
     ]
       .filter(Boolean)
       .join(" ")
@@ -118,9 +177,9 @@ export default function MyBusinessUnitsPage() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Business Unit</h1>
-            <p className="text-muted-foreground mt-1">Create and manage business unit onboarding fields</p>
+            <p className="text-muted-foreground mt-1">Manage business units from onboarding</p>
           </div>
-          <Button onClick={openCreateDialog}>
+          <Button onClick={() => openFormDialog()} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" />
             Add Business Unit
           </Button>
@@ -136,7 +195,7 @@ export default function MyBusinessUnitsPage() {
                 <Building2 className="h-5 w-5" />
                 Business Units ({filteredBusinessUnits.length})
               </CardTitle>
-              <CardDescription>Fields follow the Business Unit section in onboarding_field_mapping.xlsx</CardDescription>
+              <CardDescription>Create, update, and delete onboarding business units</CardDescription>
             </div>
             <div className="relative w-full sm:w-80">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -152,7 +211,7 @@ export default function MyBusinessUnitsPage() {
         <CardContent>
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
             </div>
           ) : filteredBusinessUnits.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
@@ -174,18 +233,31 @@ export default function MyBusinessUnitsPage() {
                         {businessUnit.code || "No code"} {businessUnit.business_unit_id ? `- ${businessUnit.business_unit_id}` : ""}
                       </p>
                     </div>
-                    <Button variant="secondary" size="icon" onClick={() => openEditDialog(businessUnit)} aria-label="Edit business unit">
-                      <Edit className="h-4 w-4" />
-                    </Button>
+                    <div className="flex shrink-0 gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => openFormDialog(businessUnit)}>
+                        <Pencil className="h-4 w-4" />
+                        <span className="sr-only">Edit business unit</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => setDeleteDialog({ open: true, businessUnit })}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Delete business unit</span>
+                      </Button>
+                    </div>
                   </div>
                   <div className="mt-4 grid gap-3 border-t pt-4 sm:grid-cols-2">
-                    <Field label="Division" value={businessUnit.division} />
-                    <Field label="Line of Business" value={businessUnit.line_of_business} />
-                    <Field label="Cost Center" value={businessUnit.cost_center} />
-                    <Field label="SLA Tier" value={businessUnit.sla_tier} />
-                    <Field label="Cloud Provider" value={businessUnit.cloud_provider} />
+                    <Field label="Owner" value={businessUnit.owner_name || businessUnit.ownerName} />
+                    <Field label="Owner Email" value={businessUnit.owner_email || businessUnit.ownerEmail} />
+                    <Field label="Projects" value={Array.isArray(businessUnit.projects) ? businessUnit.projects.length : 0} />
                     <Field label="Updated" value={businessUnit.updated_at ? format(new Date(businessUnit.updated_at), "MMM d, yyyy") : "-"} />
                   </div>
+                  {businessUnit.description && (
+                    <p className="mt-4 border-t pt-4 text-sm text-muted-foreground">{businessUnit.description}</p>
+                  )}
                 </div>
               ))}
             </div>
@@ -194,25 +266,70 @@ export default function MyBusinessUnitsPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl">
+      <Dialog open={formDialog.open} onOpenChange={(open) => (open ? null : closeFormDialog())}>
+        <DialogContent className="sm:max-w-2xl" data-testid="business-unit-form-dialog">
           <DialogHeader>
-            <DialogTitle>{editingBusinessUnit ? "Edit Business Unit" : "Add Business Unit"}</DialogTitle>
-            <DialogDescription>Complete the fields from the Business Unit onboarding mapping.</DialogDescription>
+            <DialogTitle>{formDialog.businessUnit ? "Edit Business Unit" : "Add Business Unit"}</DialogTitle>
+            <DialogDescription>{formDialog.businessUnit ? "Update onboarding business unit details." : "Create an onboarding business unit."}</DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <OnboardingFormSections sections={businessUnitSections} formData={formData} onChange={setFormData} />
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={processing}>
-                {processing ? "Saving..." : editingBusinessUnit ? "Save Changes" : "Add Business Unit"}
-              </Button>
-            </DialogFooter>
-          </form>
+          <div className="grid gap-4 py-2 sm:grid-cols-2">
+            <FormField label="Name" value={formDialog.values.name} onChange={(value) => updateFormValue("name", value)} />
+            <FormField label="Code" value={formDialog.values.code} onChange={(value) => updateFormValue("code", value)} />
+            <FormField label="Display Name" value={formDialog.values.displayName} onChange={(value) => updateFormValue("displayName", value)} />
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={formDialog.values.status} onValueChange={(value) => updateFormValue("status", value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="INACTIVE">Inactive</SelectItem>
+                  <SelectItem value="ARCHIVED">Archived</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <FormField label="Owner Name" value={formDialog.values.ownerName} onChange={(value) => updateFormValue("ownerName", value)} />
+            <FormField label="Owner Email" value={formDialog.values.ownerEmail} onChange={(value) => updateFormValue("ownerEmail", value)} />
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Description</Label>
+              <Textarea value={formDialog.values.description} onChange={(event) => updateFormValue("description", event.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeFormDialog} disabled={saving}>Cancel</Button>
+            <Button onClick={handleSaveBusinessUnit} disabled={saving}>
+              {saving ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ open, businessUnit: open ? deleteDialog.businessUnit : null })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Business Unit</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete <strong>{deleteDialog.businessUnit?.display_name || deleteDialog.businessUnit?.name}</strong> from onboarding?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteBusinessUnit} className="bg-destructive text-destructive-foreground">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+function FormField({ label, value, onChange }) {
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <Input value={value} onChange={(event) => onChange(event.target.value)} />
     </div>
   );
 }
@@ -221,7 +338,7 @@ function Field({ label, value }) {
   return (
     <div>
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 text-sm font-medium">{value || "-"}</p>
+      <p className="mt-1 text-sm font-medium">{value || value === 0 ? value : "-"}</p>
     </div>
   );
 }

@@ -17,6 +17,10 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  const contextToken = localStorage.getItem("contextToken");
+  if (contextToken) {
+    config.headers["X-ProbeStack-Context-Token"] = contextToken;
+  }
   return config;
 });
 
@@ -26,6 +30,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem("token");
+      localStorage.removeItem("contextToken");
       window.location.href = `${ADMIN_BASE_PATH}/login`;
     }
     return Promise.reject(error);
@@ -120,6 +125,11 @@ export const billingApi = {
   generateMonthly: () => api.post("/billing/generate-monthly"),
 };
 
+export const probestackApi = {
+  getBillingDetails: () => api.get("/probestack/billing-details"),
+  updateBillingDetails: (data) => api.put("/probestack/billing-details", data),
+};
+
 export const notificationsApi = {
   getAll: (params) => api.get("/notifications", { params }),
   getGroupEmails: () => api.get("/notifications/group-emails"),
@@ -187,11 +197,27 @@ export const myOrganizationApi = {
   // Roles in my org
   getRoles: () => api.get("/my-organization/roles"),
 
+  // Access catalog from product/onboarding APIs
+  getOrganizationMembers: (params) => api.get("/my-organization/organization-members", { params }),
+  getOrganizationMemberAccess: (principalId) => api.get(`/my-organization/organization-members/${principalId}/access`),
+  getAccessCatalogUsers: (params) => api.get("/my-organization/access-catalog/users", { params }),
+  getAccessCatalogUser: (principalId) => api.get(`/my-organization/access-catalog/users/${principalId}`),
+  getAccessCatalogUserBootstrap: (principalId) => api.get(`/my-organization/access-catalog/users/${principalId}/bootstrap`),
+  getAccessCatalogResources: (params) => api.get("/my-organization/access-catalog/resources", { params }),
+  getAccessCatalogResource: (resourceType, resourceId, params) =>
+    api.get(`/my-organization/access-catalog/resources/${resourceType}/${resourceId}`, { params }),
+  getRoleAssignments: () => api.get("/my-organization/role-assignments"),
+  getRoleAssignment: (id) => api.get(`/my-organization/role-assignments/${id}`),
+  createRoleAssignment: (data) => api.post("/my-organization/role-assignments", data),
+  updateRoleAssignment: (id, data) => api.patch(`/my-organization/role-assignments/${id}`, data),
+  deleteRoleAssignment: (id) => api.delete(`/my-organization/role-assignments/${id}`),
+
   // Business units in my org
   getBusinessUnits: (params) => api.get("/my-organization/business-units", { params }),
   getBusinessUnitById: (id) => api.get(`/my-organization/business-units/${id}`),
   createBusinessUnit: (data) => api.post("/my-organization/business-units", data),
   updateBusinessUnit: (id, data) => api.put(`/my-organization/business-units/${id}`, data),
+  deleteBusinessUnit: (id) => api.delete(`/my-organization/business-units/${id}`),
 
   // Projects/teams in my org
   getProjects: (params) => api.get("/my-organization/projects", { params }),
@@ -200,6 +226,7 @@ export const myOrganizationApi = {
   getBusinessUnitProjects: (businessUnitId) => api.get(`/my-organization/business-units/${businessUnitId}/projects`),
   createProject: (data) => api.post("/my-organization/projects", data),
   updateProject: (id, data) => api.put(`/my-organization/projects/${id}`, data),
+  deleteProject: (id) => api.delete(`/my-organization/projects/${id}`),
   getProjectTeam: (projectId) => api.get(`/my-organization/projects/${projectId}/team`),
   inviteProjectTeam: (projectId, data) => api.post(`/my-organization/projects/${projectId}/team/invite`, data),
 
