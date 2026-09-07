@@ -235,6 +235,26 @@ export const myOrganizationApi = {
   getApplicationById: (id) => api.get(`/my-organization/applications/${id}`),
   createApplication: (data) => api.post("/my-organization/applications", data),
   updateApplication: (id, data) => api.put(`/my-organization/applications/${id}`, data),
+  deleteApplication: (id) => api.delete(`/my-organization/applications/${id}`),
+
+  // Onboarding consumers/developers/access teams
+  getConsumers: (params) => api.get("/my-organization/consumers", { params }),
+  getConsumerById: (id) => api.get(`/my-organization/consumers/${id}`),
+  createConsumer: (data) => api.post("/my-organization/consumers", data),
+  updateConsumer: (id, data) => api.put(`/my-organization/consumers/${id}`, data),
+  deleteConsumer: (id) => api.delete(`/my-organization/consumers/${id}`),
+  getDevelopers: (params) => api.get("/my-organization/developers", { params }),
+  getDeveloperById: (id) => api.get(`/my-organization/developers/${id}`),
+  createDeveloper: (data) => api.post("/my-organization/developers", data),
+  updateDeveloper: (id, data) => api.put(`/my-organization/developers/${id}`, data),
+  deleteDeveloper: (id) => api.delete(`/my-organization/developers/${id}`),
+  getAccessTeams: () => api.get("/my-organization/access/teams"),
+  getAccessTeamById: (id) => api.get(`/my-organization/access/teams/${id}`),
+  createAccessTeam: (data) => api.post("/my-organization/access/teams", data),
+  updateAccessTeam: (id, data) => api.put(`/my-organization/access/teams/${id}`, data),
+  deleteAccessTeam: (id) => api.delete(`/my-organization/access/teams/${id}`),
+  grantAccessTeamToApplication: (teamId, applicationId) => api.put(`/my-organization/access/teams/${teamId}/applications/${applicationId}`),
+  revokeAccessTeamFromApplication: (teamId, applicationId) => api.delete(`/my-organization/access/teams/${teamId}/applications/${applicationId}`),
   
   // Billing for my org
   getBilling: () => api.get("/my-organization/billing"),
