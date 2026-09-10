@@ -56,6 +56,7 @@ const statusClasses = {
 
 export default function MyBusinessUnitsPage() {
   const [businessUnits, setBusinessUnits] = useState([]);
+  const [organizationUsers, setOrganizationUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
@@ -64,6 +65,7 @@ export default function MyBusinessUnitsPage() {
 
   useEffect(() => {
     fetchBusinessUnits();
+    fetchOrganizationUsers();
   }, []);
 
   const fetchBusinessUnits = async () => {
@@ -74,6 +76,15 @@ export default function MyBusinessUnitsPage() {
       toast.error(getErrorMessage(error, "Failed to load business units"));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchOrganizationUsers = async () => {
+    try {
+      const response = await myOrganizationApi.getUsers();
+      setOrganizationUsers(response.data || []);
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to load organization users"));
     }
   };
 
@@ -101,6 +112,28 @@ export default function MyBusinessUnitsPage() {
       values: { ...current.values, [field]: value },
     }));
   };
+
+  const updateOwner = (email) => {
+    const selectedUser = organizationUsers.find(
+      (user) => user.email?.trim().toLowerCase() === email.toLowerCase()
+    );
+    setFormDialog((current) => ({
+      ...current,
+      values: {
+        ...current.values,
+        ownerEmail: email,
+        ownerName: selectedUser?.name || current.values.ownerName,
+      },
+    }));
+  };
+
+  const ownerEmailOptions = Array.from(
+    new Map(
+      organizationUsers
+        .filter((user) => user.email?.trim())
+        .map((user) => [user.email.trim().toLowerCase(), { ...user, email: user.email.trim() }])
+    ).values()
+  ).sort((left, right) => left.email.localeCompare(right.email));
 
   const closeFormDialog = () => {
     setFormDialog({ open: false, businessUnit: null, values: emptyBusinessUnitForm });
@@ -290,7 +323,21 @@ export default function MyBusinessUnitsPage() {
               </Select>
             </div>
             <FormField label="Owner Name" value={formDialog.values.ownerName} onChange={(value) => updateFormValue("ownerName", value)} />
-            <FormField label="Owner Email" value={formDialog.values.ownerEmail} onChange={(value) => updateFormValue("ownerEmail", value)} />
+            <div className="space-y-2">
+              <Label>Owner Email</Label>
+              <Select value={formDialog.values.ownerEmail} onValueChange={updateOwner} disabled={!ownerEmailOptions.length}>
+                <SelectTrigger>
+                  <SelectValue placeholder={ownerEmailOptions.length ? "Select owner email" : "No organization users available"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {ownerEmailOptions.map((user) => (
+                    <SelectItem key={user.email.toLowerCase()} value={user.email}>
+                      {user.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2 sm:col-span-2">
               <Label>Description</Label>
               <Textarea value={formDialog.values.description} onChange={(event) => updateFormValue("description", event.target.value)} />
