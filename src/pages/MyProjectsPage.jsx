@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -41,7 +40,7 @@ import {
 } from "../components/ui/table";
 import { myOrganizationApi } from "../lib/api";
 import { toast } from "sonner";
-import { Package, Pencil, Plus, Search, Trash2, UserPlus } from "lucide-react";
+import { Package, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { getErrorMessage } from "../lib/utils";
 import OrganizationTabs from "../components/OrganizationTabs";
@@ -73,7 +72,6 @@ const formatRole = (role) =>
     .join(" ");
 
 export default function MyProjectsPage() {
-  const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
   const [businessUnits, setBusinessUnits] = useState([]);
@@ -400,10 +398,6 @@ export default function MyProjectsPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => navigate(`/onboard-project/${project.id}/team`)}>
-                              <UserPlus className="h-4 w-4" />
-                              <span className="sr-only">Manage project team</span>
-                            </Button>
                             <Button variant="ghost" size="icon" onClick={() => openFormDialog(project)}>
                               <Pencil className="h-4 w-4" />
                               <span className="sr-only">Edit project</span>

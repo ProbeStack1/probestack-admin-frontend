@@ -33,7 +33,6 @@ import MyOrganizationPage from "./pages/MyOrganizationPage";
 import MyBusinessUnitsPage from "./pages/MyBusinessUnitsPage";
 import MyProjectsPage from "./pages/MyProjectsPage";
 import MyApplicationsPage from "./pages/MyApplicationsPage";
-import MyProjectTeamPage from "./pages/MyProjectTeamPage";
 
 // Layout
 import DashboardLayout from "./components/layout/DashboardLayout";
@@ -122,7 +121,6 @@ function AppRoutes() {
           <Route path="onboard-bu" element={<OrgAdminRoute><MyBusinessUnitsPage /></OrgAdminRoute>} />
           <Route path="onboard-project" element={<OrgAdminRoute><MyProjectsPage /></OrgAdminRoute>} />
           <Route path="onboard-application" element={<OrgAdminRoute><MyApplicationsPage /></OrgAdminRoute>} />
-          <Route path="onboard-project/:projectId/team" element={<OrgAdminRoute><MyProjectTeamPage /></OrgAdminRoute>} />
 
           {/* Shared */}
           <Route path="plans" element={<PlansPage />} />

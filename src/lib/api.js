@@ -227,8 +227,6 @@ export const myOrganizationApi = {
   createProject: (data) => api.post("/my-organization/projects", data),
   updateProject: (id, data) => api.put(`/my-organization/projects/${id}`, data),
   deleteProject: (id) => api.delete(`/my-organization/projects/${id}`),
-  getProjectTeam: (projectId) => api.get(`/my-organization/projects/${projectId}/team`),
-  inviteProjectTeam: (projectId, data) => api.post(`/my-organization/projects/${projectId}/team/invite`, data),
 
   // Applications in my org
   getApplications: (params) => api.get("/my-organization/applications", { params }),
