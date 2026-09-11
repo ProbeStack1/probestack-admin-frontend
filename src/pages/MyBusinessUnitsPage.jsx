@@ -81,7 +81,7 @@ export default function MyBusinessUnitsPage() {
 
   const fetchOrganizationUsers = async () => {
     try {
-      const response = await myOrganizationApi.getUsers();
+      const response = await myOrganizationApi.getOrganizationMembers({ status: "ACTIVE", page: 0, size: 500 });
       setOrganizationUsers(response.data || []);
     } catch (error) {
       toast.error(getErrorMessage(error, "Failed to load organization users"));
@@ -332,7 +332,7 @@ export default function MyBusinessUnitsPage() {
                 <SelectContent>
                   {ownerEmailOptions.map((user) => (
                     <SelectItem key={user.email.toLowerCase()} value={user.email}>
-                      {user.email}
+                      {user.name ? `${user.name} (${user.email})` : user.email}
                     </SelectItem>
                   ))}
                 </SelectContent>

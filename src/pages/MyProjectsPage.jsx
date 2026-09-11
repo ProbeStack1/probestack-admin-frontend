@@ -75,6 +75,7 @@ export default function MyProjectsPage() {
   const [projects, setProjects] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
   const [businessUnits, setBusinessUnits] = useState([]);
+  const [organizationUsers, setOrganizationUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
@@ -96,14 +97,16 @@ export default function MyProjectsPage() {
 
   const fetchPageData = async () => {
     try {
-      const [projectsResponse, businessUnitsResponse, teamMembersResponse] = await Promise.all([
+      const [projectsResponse, businessUnitsResponse, teamMembersResponse, usersResponse] = await Promise.all([
         myOrganizationApi.getProjects(),
         myOrganizationApi.getBusinessUnits(),
         myOrganizationApi.getProjectTeamMembers(),
+        myOrganizationApi.getOrganizationMembers({ status: "ACTIVE", page: 0, size: 500 }),
       ]);
       setProjects(projectsResponse.data || []);
       setBusinessUnits(businessUnitsResponse.data || []);
       setTeamMembers(teamMembersResponse.data || []);
+      setOrganizationUsers(usersResponse.data || []);
     } catch (error) {
       toast.error(getErrorMessage(error, "Failed to load projects and business units"));
     } finally {
@@ -135,6 +138,31 @@ export default function MyProjectsPage() {
       values: { ...current.values, [field]: value },
     }));
   };
+
+  const updateOwner = (email) => {
+    const selectedUser = organizationUsers.find(
+      (user) => user.email?.trim().toLowerCase() === email.toLowerCase()
+    );
+    setFormDialog((current) => ({
+      ...current,
+      values: {
+        ...current.values,
+        ownerEmail: email,
+        ownerName: selectedUser?.name || current.values.ownerName,
+      },
+    }));
+  };
+
+  const ownerEmailOptions = useMemo(
+    () => Array.from(
+      new Map(
+        organizationUsers
+          .filter((user) => user.email?.trim())
+          .map((user) => [user.email.trim().toLowerCase(), { ...user, email: user.email.trim() }])
+      ).values()
+    ).sort((left, right) => left.email.localeCompare(right.email)),
+    [organizationUsers]
+  );
 
   const closeFormDialog = () => {
     setFormDialog({ open: false, project: null, values: emptyProjectForm });
@@ -449,7 +477,21 @@ export default function MyProjectsPage() {
             <FormField label="Name" value={formDialog.values.name} onChange={(value) => updateFormValue("name", value)} />
             <FormField label="Code" value={formDialog.values.code} onChange={(value) => updateFormValue("code", value)} />
             <FormField label="Owner Name" value={formDialog.values.ownerName} onChange={(value) => updateFormValue("ownerName", value)} />
-            <FormField label="Owner Email" value={formDialog.values.ownerEmail} onChange={(value) => updateFormValue("ownerEmail", value)} />
+            <div className="space-y-2">
+              <Label>Owner Email</Label>
+              <Select value={formDialog.values.ownerEmail} onValueChange={updateOwner} disabled={!ownerEmailOptions.length}>
+                <SelectTrigger>
+                  <SelectValue placeholder={ownerEmailOptions.length ? "Select organization user" : "No organization users available"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {ownerEmailOptions.map((user) => (
+                    <SelectItem key={user.email.toLowerCase()} value={user.email}>
+                      {user.name ? `${user.name} (${user.email})` : user.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label>Status</Label>
               <Select value={formDialog.values.status} onValueChange={(value) => updateFormValue("status", value)}>

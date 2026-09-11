@@ -38,6 +38,7 @@ import {
   UserCheck,
   KeyRound,
   AppWindow,
+  Landmark,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 
@@ -54,6 +55,7 @@ const superAdminNavItems = [
   { path: "/users", icon: Users, label: "Users" },
   { path: "/roles", icon: Shield, label: "Roles" },
   { path: "/billing", icon: Receipt, label: "Billing" },
+  { path: "/probestack-details", icon: Landmark, label: "ProbeStack Details" },
   { path: "/notifications", icon: Bell, label: "Notifications" },
   { path: "/zitadel-test", icon: KeyRound, label: "Zitadel Test" },
   { path: "/settings", icon: Settings, label: "Settings" },

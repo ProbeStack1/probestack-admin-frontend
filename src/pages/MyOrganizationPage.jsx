@@ -7,12 +7,12 @@ import { toast } from "sonner";
 import { Building2, Save } from "lucide-react";
 import OrganizationTabs from "../components/OrganizationTabs";
 import OnboardingFormSections from "../components/OnboardingFormSections";
-import { buildInitialData, buildPayloadFromData, organizationSections } from "../lib/onboardingFields";
+import { buildInitialData, buildPayloadFromData, orgAdminOrganizationSections } from "../lib/onboardingFields";
 import { getErrorMessage } from "../lib/utils";
 
 export default function MyOrganizationPage() {
   const [organization, setOrganization] = useState(null);
-  const [formData, setFormData] = useState(buildInitialData(organizationSections));
+  const [formData, setFormData] = useState(buildInitialData(orgAdminOrganizationSections));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -24,7 +24,7 @@ export default function MyOrganizationPage() {
     try {
       const response = await myOrganizationApi.getOrganization();
       setOrganization(response.data);
-      setFormData(buildInitialData(organizationSections, response.data));
+      setFormData(buildInitialData(orgAdminOrganizationSections, response.data));
     } catch (error) {
       toast.error("Failed to load organization details");
     } finally {
@@ -36,10 +36,10 @@ export default function MyOrganizationPage() {
     event.preventDefault();
     setSaving(true);
     try {
-      const payload = buildPayloadFromData(organizationSections, formData);
+      const payload = buildPayloadFromData(orgAdminOrganizationSections, formData);
       const response = await myOrganizationApi.updateOrganization(payload);
       setOrganization(response.data.organization);
-      setFormData(buildInitialData(organizationSections, response.data.organization));
+      setFormData(buildInitialData(orgAdminOrganizationSections, response.data.organization));
       toast.success("Organization fields updated");
     } catch (error) {
       toast.error(getErrorMessage(error, "Failed to update organization"));
@@ -83,7 +83,7 @@ export default function MyOrganizationPage() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-6">
               <OnboardingFormSections
-                sections={organizationSections}
+                sections={orgAdminOrganizationSections}
                 formData={formData}
                 onChange={setFormData}
               />

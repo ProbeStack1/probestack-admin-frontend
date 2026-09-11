@@ -26,6 +26,7 @@ const allProjectsValue = "__all_projects__";
 export default function MyApplicationsPage() {
   const [applications, setApplications] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [organizationUsers, setOrganizationUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [projectFilter, setProjectFilter] = useState(allProjectsValue);
@@ -47,12 +48,14 @@ export default function MyApplicationsPage() {
 
   const fetchPageData = async () => {
     try {
-      const [applicationsResponse, projectsResponse] = await Promise.all([
+      const [applicationsResponse, projectsResponse, usersResponse] = await Promise.all([
         myOrganizationApi.getApplications(),
         myOrganizationApi.getProjects(),
+        myOrganizationApi.getOrganizationMembers({ status: "ACTIVE", page: 0, size: 500 }),
       ]);
-      setApplications(applicationsResponse.data);
-      setProjects(projectsResponse.data);
+      setApplications(applicationsResponse.data || []);
+      setProjects(projectsResponse.data || []);
+      setOrganizationUsers(usersResponse.data || []);
     } catch (error) {
       toast.error("Failed to load applications");
     } finally {
@@ -225,6 +228,7 @@ export default function MyApplicationsPage() {
               formData={formData}
               onChange={setFormData}
               projects={projects}
+              organizationUsers={organizationUsers}
             />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>

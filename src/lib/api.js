@@ -2,6 +2,7 @@ import axios from "axios";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const ADMIN_BASE_PATH = process.env.PUBLIC_URL || "/admin";
+const pathSegment = (value) => encodeURIComponent(String(value));
 
 export const api = axios.create({
   baseURL: `${BACKEND_URL}/api`,
@@ -199,60 +200,60 @@ export const myOrganizationApi = {
 
   // Access catalog from product/onboarding APIs
   getOrganizationMembers: (params) => api.get("/my-organization/organization-members", { params }),
-  getOrganizationMemberAccess: (principalId) => api.get(`/my-organization/organization-members/${principalId}/access`),
+  getOrganizationMemberAccess: (principalId) => api.get(`/my-organization/organization-members/${pathSegment(principalId)}/access`),
   getAccessCatalogUsers: (params) => api.get("/my-organization/access-catalog/users", { params }),
-  getAccessCatalogUser: (principalId) => api.get(`/my-organization/access-catalog/users/${principalId}`),
-  getAccessCatalogUserBootstrap: (principalId) => api.get(`/my-organization/access-catalog/users/${principalId}/bootstrap`),
+  getAccessCatalogUser: (principalId) => api.get(`/my-organization/access-catalog/users/${pathSegment(principalId)}`),
+  getAccessCatalogUserBootstrap: (principalId) => api.get(`/my-organization/access-catalog/users/${pathSegment(principalId)}/bootstrap`),
   getAccessCatalogResources: (params) => api.get("/my-organization/access-catalog/resources", { params }),
   getAccessCatalogResource: (resourceType, resourceId, params) =>
-    api.get(`/my-organization/access-catalog/resources/${resourceType}/${resourceId}`, { params }),
+    api.get(`/my-organization/access-catalog/resources/${pathSegment(resourceType)}/${pathSegment(resourceId)}`, { params }),
   getRoleAssignments: () => api.get("/my-organization/role-assignments"),
-  getRoleAssignment: (id) => api.get(`/my-organization/role-assignments/${id}`),
+  getRoleAssignment: (id) => api.get(`/my-organization/role-assignments/${pathSegment(id)}`),
   createRoleAssignment: (data) => api.post("/my-organization/role-assignments", data),
-  updateRoleAssignment: (id, data) => api.patch(`/my-organization/role-assignments/${id}`, data),
-  deleteRoleAssignment: (id) => api.delete(`/my-organization/role-assignments/${id}`),
+  updateRoleAssignment: (id, data) => api.patch(`/my-organization/role-assignments/${pathSegment(id)}`, data),
+  deleteRoleAssignment: (id) => api.delete(`/my-organization/role-assignments/${pathSegment(id)}`),
 
   // Business units in my org
   getBusinessUnits: (params) => api.get("/my-organization/business-units", { params }),
-  getBusinessUnitById: (id) => api.get(`/my-organization/business-units/${id}`),
+  getBusinessUnitById: (id) => api.get(`/my-organization/business-units/${pathSegment(id)}`),
   createBusinessUnit: (data) => api.post("/my-organization/business-units", data),
-  updateBusinessUnit: (id, data) => api.put(`/my-organization/business-units/${id}`, data),
-  deleteBusinessUnit: (id) => api.delete(`/my-organization/business-units/${id}`),
+  updateBusinessUnit: (id, data) => api.put(`/my-organization/business-units/${pathSegment(id)}`, data),
+  deleteBusinessUnit: (id) => api.delete(`/my-organization/business-units/${pathSegment(id)}`),
 
   // Projects/teams in my org
   getProjects: (params) => api.get("/my-organization/projects", { params }),
-  getProjectById: (id) => api.get(`/my-organization/projects/${id}`),
+  getProjectById: (id) => api.get(`/my-organization/projects/${pathSegment(id)}`),
   getProjectTeamMembers: () => api.get("/my-organization/project-team-members"),
-  getBusinessUnitProjects: (businessUnitId) => api.get(`/my-organization/business-units/${businessUnitId}/projects`),
+  getBusinessUnitProjects: (businessUnitId) => api.get(`/my-organization/business-units/${pathSegment(businessUnitId)}/projects`),
   createProject: (data) => api.post("/my-organization/projects", data),
-  updateProject: (id, data) => api.put(`/my-organization/projects/${id}`, data),
-  deleteProject: (id) => api.delete(`/my-organization/projects/${id}`),
+  updateProject: (id, data) => api.put(`/my-organization/projects/${pathSegment(id)}`, data),
+  deleteProject: (id) => api.delete(`/my-organization/projects/${pathSegment(id)}`),
 
   // Applications in my org
   getApplications: (params) => api.get("/my-organization/applications", { params }),
-  getApplicationById: (id) => api.get(`/my-organization/applications/${id}`),
+  getApplicationById: (id) => api.get(`/my-organization/applications/${pathSegment(id)}`),
   createApplication: (data) => api.post("/my-organization/applications", data),
-  updateApplication: (id, data) => api.put(`/my-organization/applications/${id}`, data),
-  deleteApplication: (id) => api.delete(`/my-organization/applications/${id}`),
+  updateApplication: (id, data) => api.put(`/my-organization/applications/${pathSegment(id)}`, data),
+  deleteApplication: (id) => api.delete(`/my-organization/applications/${pathSegment(id)}`),
 
   // Onboarding consumers/developers/access teams
   getConsumers: (params) => api.get("/my-organization/consumers", { params }),
-  getConsumerById: (id) => api.get(`/my-organization/consumers/${id}`),
+  getConsumerById: (id) => api.get(`/my-organization/consumers/${pathSegment(id)}`),
   createConsumer: (data) => api.post("/my-organization/consumers", data),
-  updateConsumer: (id, data) => api.put(`/my-organization/consumers/${id}`, data),
-  deleteConsumer: (id) => api.delete(`/my-organization/consumers/${id}`),
+  updateConsumer: (id, data) => api.put(`/my-organization/consumers/${pathSegment(id)}`, data),
+  deleteConsumer: (id) => api.delete(`/my-organization/consumers/${pathSegment(id)}`),
   getDevelopers: (params) => api.get("/my-organization/developers", { params }),
-  getDeveloperById: (id) => api.get(`/my-organization/developers/${id}`),
+  getDeveloperById: (id) => api.get(`/my-organization/developers/${pathSegment(id)}`),
   createDeveloper: (data) => api.post("/my-organization/developers", data),
-  updateDeveloper: (id, data) => api.put(`/my-organization/developers/${id}`, data),
-  deleteDeveloper: (id) => api.delete(`/my-organization/developers/${id}`),
+  updateDeveloper: (id, data) => api.put(`/my-organization/developers/${pathSegment(id)}`, data),
+  deleteDeveloper: (id) => api.delete(`/my-organization/developers/${pathSegment(id)}`),
   getAccessTeams: () => api.get("/my-organization/access/teams"),
-  getAccessTeamById: (id) => api.get(`/my-organization/access/teams/${id}`),
+  getAccessTeamById: (id) => api.get(`/my-organization/access/teams/${pathSegment(id)}`),
   createAccessTeam: (data) => api.post("/my-organization/access/teams", data),
-  updateAccessTeam: (id, data) => api.put(`/my-organization/access/teams/${id}`, data),
-  deleteAccessTeam: (id) => api.delete(`/my-organization/access/teams/${id}`),
-  grantAccessTeamToApplication: (teamId, applicationId) => api.put(`/my-organization/access/teams/${teamId}/applications/${applicationId}`),
-  revokeAccessTeamFromApplication: (teamId, applicationId) => api.delete(`/my-organization/access/teams/${teamId}/applications/${applicationId}`),
+  updateAccessTeam: (id, data) => api.put(`/my-organization/access/teams/${pathSegment(id)}`, data),
+  deleteAccessTeam: (id) => api.delete(`/my-organization/access/teams/${pathSegment(id)}`),
+  grantAccessTeamToApplication: (teamId, applicationId) => api.put(`/my-organization/access/teams/${pathSegment(teamId)}/applications/${pathSegment(applicationId)}`),
+  revokeAccessTeamFromApplication: (teamId, applicationId) => api.delete(`/my-organization/access/teams/${pathSegment(teamId)}/applications/${pathSegment(applicationId)}`),
   
   // Billing for my org
   getBilling: () => api.get("/my-organization/billing"),

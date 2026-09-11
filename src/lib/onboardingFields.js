@@ -82,6 +82,24 @@ export const organizationSections = [
   },
 ];
 
+export const orgAdminReadOnlyOrganizationFields = new Set([
+  "organization_id",
+  "organization_code",
+  "name",
+  "legal_name",
+  "status",
+  "created_by",
+  "created_at",
+]);
+
+export const orgAdminOrganizationSections = organizationSections.map((section) => ({
+  ...section,
+  fields: section.fields.map((field) => ({
+    ...field,
+    readOnly: field.readOnly || orgAdminReadOnlyOrganizationFields.has(field.key),
+  })),
+}));
+
 export const businessUnitSections = [
   {
     title: "General",
@@ -247,6 +265,18 @@ export const applicationSections = [
       { key: "domain", label: "Domain" },
       { key: "application_type", label: "Application Type" },
       { key: "criticality", label: "Criticality" },
+    ],
+  },
+  {
+    title: "Ownership",
+    fields: [
+      { key: "owner_name", label: "Owner Name" },
+      {
+        key: "owner_email",
+        label: "Owner Email",
+        type: "organizationUserEmailSelect",
+        nameField: "owner_name",
+      },
     ],
   },
   {

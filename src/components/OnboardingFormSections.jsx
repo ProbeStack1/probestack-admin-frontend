@@ -13,8 +13,17 @@ export default function OnboardingFormSections({
   onChange,
   businessUnits = [],
   projects = [],
+  organizationUsers = [],
 }) {
   const setValue = (key, value) => onChange({ ...formData, [key]: value });
+
+  const organizationUserOptions = Array.from(
+    new Map(
+      organizationUsers
+        .filter((user) => user.email?.trim())
+        .map((user) => [user.email.trim().toLowerCase(), { ...user, email: user.email.trim() }])
+    ).values()
+  ).sort((left, right) => left.email.localeCompare(right.email));
 
   const renderField = (field) => {
     const value = formData[field.key];
@@ -93,6 +102,40 @@ export default function OnboardingFormSections({
               {projects.map((project) => (
                 <SelectItem key={project.id} value={project.id}>
                   {project.name} {project.code ? `(${project.code})` : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FieldShell>
+      );
+    }
+
+    if (field.type === "organizationUserEmailSelect") {
+      return (
+        <FieldShell field={field} id={id}>
+          <Select
+            value={value || emptyValue}
+            onValueChange={(nextValue) => {
+              const email = nextValue === emptyValue ? "" : nextValue;
+              const selectedUser = organizationUserOptions.find(
+                (user) => user.email.toLowerCase() === email.toLowerCase()
+              );
+              onChange({
+                ...formData,
+                [field.key]: email,
+                ...(field.nameField && selectedUser ? { [field.nameField]: selectedUser.name || "" } : {}),
+              });
+            }}
+            disabled={field.readOnly || !organizationUserOptions.length}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={organizationUserOptions.length ? "Select organization user" : "No organization users available"} />
+            </SelectTrigger>
+            <SelectContent>
+              {!field.required && <SelectItem value={emptyValue}>Not set</SelectItem>}
+              {organizationUserOptions.map((user) => (
+                <SelectItem key={user.email.toLowerCase()} value={user.email}>
+                  {user.name ? `${user.name} (${user.email})` : user.email}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -14,6 +14,7 @@ import PlansPage from "./pages/PlansPage";
 import UsersPage from "./pages/UsersPage";
 import RolesPage from "./pages/RolesPage";
 import BillingPage from "./pages/BillingPage";
+import ProbestackDetailsPage from "./pages/ProbestackDetailsPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import SettingsPage from "./pages/SettingsPage";
 import UpgradeRequestsPage from "./pages/UpgradeRequestsPage";
@@ -104,6 +105,7 @@ function AppRoutes() {
           <Route path="users" element={<SuperAdminRoute><UsersPage /></SuperAdminRoute>} />
           <Route path="roles" element={<SuperAdminRoute><RolesPage /></SuperAdminRoute>} />
           <Route path="billing" element={<SuperAdminRoute><BillingPage /></SuperAdminRoute>} />
+          <Route path="probestack-details" element={<SuperAdminRoute><ProbestackDetailsPage /></SuperAdminRoute>} />
           <Route path="notifications" element={<SuperAdminRoute><NotificationsPage /></SuperAdminRoute>} />
           <Route path="upgrade-requests" element={<SuperAdminRoute><UpgradeRequestsPage /></SuperAdminRoute>} />
           <Route path="admins" element={<SuperAdminRoute><AdminsPage /></SuperAdminRoute>} />

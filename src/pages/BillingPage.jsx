@@ -50,6 +50,13 @@ export default function BillingPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [generatingBills, setGeneratingBills] = useState(false);
   const [sendingInvoice, setSendingInvoice] = useState(false);
+  const invoiceEmailPayload = useMemo(() => {
+    const pendingEmail = customEmail.trim();
+    if (!pendingEmail) return selectedEmails;
+    const hasPendingEmail = selectedEmails.some((email) => email.toLowerCase() === pendingEmail.toLowerCase());
+    return hasPendingEmail ? selectedEmails : [...selectedEmails, pendingEmail];
+  }, [customEmail, selectedEmails]);
+  const canSendInvoice = invoiceEmailPayload.length > 0;
 
   useEffect(() => {
     fetchRecords();
@@ -120,7 +127,10 @@ export default function BillingPage() {
       const response = await billingApi.getInvoiceRecipients(record.id);
       const options = response.data || [];
       setRecipientOptions(options);
-      const defaultEmail = options.find((option) => option.type === "organization")?.email;
+      const defaultEmail =
+        options.find((option) => option.type === "organization")?.email ||
+        options.find((option) => option.type === "org_admin")?.email ||
+        options[0]?.email;
       setSelectedEmails(defaultEmail ? [defaultEmail] : []);
     } catch (error) {
       toast.error("Failed to load invoice recipients");
@@ -138,7 +148,8 @@ export default function BillingPage() {
   const addCustomEmail = () => {
     const email = customEmail.trim();
     if (!email) return;
-    if (!selectedEmails.includes(email)) {
+    const hasEmail = selectedEmails.some((item) => item.toLowerCase() === email.toLowerCase());
+    if (!hasEmail) {
       setSelectedEmails((current) => [...current, email]);
     }
     setCustomEmail("");
@@ -149,14 +160,15 @@ export default function BillingPage() {
   };
 
   const handleSendInvoiceEmail = async () => {
-    if (!emailRecord || selectedEmails.length === 0) return;
+    if (!emailRecord || invoiceEmailPayload.length === 0) return;
     setSendingInvoice(true);
     try {
-      await billingApi.sendInvoiceEmail(emailRecord.id, selectedEmails);
+      await billingApi.sendInvoiceEmail(emailRecord.id, invoiceEmailPayload);
       toast.success("Invoice email sent");
       setShowEmailDialog(false);
       setEmailRecord(null);
       setSelectedEmails([]);
+      setCustomEmail("");
     } catch (error) {
       toast.error(error.response?.data?.detail || "Failed to send invoice email");
     } finally {
@@ -460,7 +472,7 @@ export default function BillingPage() {
                     }
                   }}
                 />
-                <Button type="button" variant="outline" onClick={addCustomEmail}>
+                <Button type="button" variant="outline" onClick={addCustomEmail} disabled={!customEmail.trim()}>
                   <Plus className="mr-2 h-4 w-4" />
                   Add
                 </Button>
@@ -485,7 +497,7 @@ export default function BillingPage() {
             <Button variant="outline" onClick={() => setShowEmailDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSendInvoiceEmail} disabled={sendingInvoice || selectedEmails.length === 0}>
+            <Button onClick={handleSendInvoiceEmail} disabled={sendingInvoice || !canSendInvoice}>
               <Mail className="mr-2 h-4 w-4" />
               {sendingInvoice ? "Sending..." : "Send Invoice"}
             </Button>
