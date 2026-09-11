@@ -22,6 +22,12 @@ import { getErrorMessage } from "../lib/utils";
 import PaginationControls, { usePagination } from "../components/PaginationControls";
 
 const allProjectsValue = "__all_projects__";
+const getApplicationFormSections = (isEditing) => applicationSections.map((section) => ({
+  ...section,
+  fields: section.fields.map((field) => field.key === "application_id"
+    ? { ...field, readOnly: isEditing, required: !isEditing }
+    : field),
+}));
 
 export default function MyApplicationsPage() {
   const [applications, setApplications] = useState([]);
@@ -34,6 +40,10 @@ export default function MyApplicationsPage() {
   const [editingApplication, setEditingApplication] = useState(null);
   const [formData, setFormData] = useState(buildInitialData(applicationSections));
   const [processing, setProcessing] = useState(false);
+  const formSections = useMemo(
+    () => getApplicationFormSections(Boolean(editingApplication)),
+    [editingApplication]
+  );
 
   useEffect(() => {
     fetchPageData();
@@ -65,20 +75,20 @@ export default function MyApplicationsPage() {
 
   const openCreateDialog = () => {
     setEditingApplication(null);
-    setFormData(buildInitialData(applicationSections));
+    setFormData(buildInitialData(getApplicationFormSections(false)));
     setDialogOpen(true);
   };
 
   const openEditDialog = (application) => {
     setEditingApplication(application);
-    setFormData(buildInitialData(applicationSections, flattenApplication(application)));
+    setFormData(buildInitialData(getApplicationFormSections(true), flattenApplication(application)));
     setDialogOpen(true);
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setProcessing(true);
-    const payload = buildPayloadFromData(applicationSections, formData);
+    const payload = buildPayloadFromData(formSections, formData);
 
     try {
       if (editingApplication) {
@@ -90,7 +100,7 @@ export default function MyApplicationsPage() {
       }
       setDialogOpen(false);
       setEditingApplication(null);
-      setFormData(buildInitialData(applicationSections));
+      setFormData(buildInitialData(getApplicationFormSections(false)));
       fetchPageData();
     } catch (error) {
       toast.error(getErrorMessage(error, "Failed to save application"));
@@ -224,7 +234,7 @@ export default function MyApplicationsPage() {
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-5">
             <OnboardingFormSections
-              sections={applicationSections}
+              sections={formSections}
               formData={formData}
               onChange={setFormData}
               projects={projects}
