@@ -4,6 +4,16 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Input } from "../components/ui/input";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -14,7 +24,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { myOrganizationApi } from "../lib/api";
 import { toast } from "sonner";
-import { AppWindow, Edit, Plus, Search } from "lucide-react";
+import { AppWindow, Edit, Plus, Search, Trash2 } from "lucide-react";
 import OrganizationTabs from "../components/OrganizationTabs";
 import OnboardingFormSections from "../components/OnboardingFormSections";
 import { applicationSections, buildInitialData, buildPayloadFromData } from "../lib/onboardingFields";
@@ -40,6 +50,8 @@ export default function MyApplicationsPage() {
   const [editingApplication, setEditingApplication] = useState(null);
   const [formData, setFormData] = useState(buildInitialData(applicationSections));
   const [processing, setProcessing] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, application: null });
+  const [deleting, setDeleting] = useState(false);
   const formSections = useMemo(
     () => getApplicationFormSections(Boolean(editingApplication)),
     [editingApplication]
@@ -106,6 +118,23 @@ export default function MyApplicationsPage() {
       toast.error(getErrorMessage(error, "Failed to save application"));
     } finally {
       setProcessing(false);
+    }
+  };
+
+  const handleDeleteApplication = async () => {
+    const application = deleteDialog.application;
+    if (!application?.id) return;
+
+    setDeleting(true);
+    try {
+      await myOrganizationApi.deleteApplication(application.id);
+      toast.success("Application deleted successfully");
+      setDeleteDialog({ open: false, application: null });
+      await fetchPageData();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to delete application"));
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -202,9 +231,19 @@ export default function MyApplicationsPage() {
                         {projectNameById[application.project_id] || "Unknown project"} - {application.application_id || application.id}
                       </p>
                     </div>
-                    <Button variant="secondary" size="icon" onClick={() => openEditDialog(application)} aria-label="Edit application">
-                      <Edit className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button variant="secondary" size="icon" onClick={() => openEditDialog(application)} aria-label="Edit application">
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        onClick={() => setDeleteDialog({ open: true, application })}
+                        aria-label="Delete application"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2">
                     {application.application_type && <Badge variant="outline">{application.application_type}</Badge>}
@@ -251,6 +290,33 @@ export default function MyApplicationsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog({
+          open,
+          application: open ? deleteDialog.application : null,
+        })}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Application</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete <strong>{deleteDialog.application?.display_name || deleteDialog.application?.application_name}</strong> from onboarding? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteApplication}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground"
+            >
+              {deleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
