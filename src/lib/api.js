@@ -18,10 +18,6 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  const contextToken = localStorage.getItem("contextToken");
-  if (contextToken) {
-    config.headers["X-ProbeStack-Context-Token"] = contextToken;
-  }
   return config;
 });
 
