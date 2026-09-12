@@ -1,4 +1,4 @@
-FROM node:20-alpine AS build
+FROM mirror.gcr.io/library/node:20-alpine AS build
 WORKDIR /app
 ARG REACT_APP_BACKEND_URL=https://probestack.io/admin-backend
 ENV REACT_APP_BACKEND_URL=$REACT_APP_BACKEND_URL
@@ -9,7 +9,7 @@ RUN npm install
 COPY . .
 RUN npm run build
 
-FROM nginx:alpine
+FROM mirror.gcr.io/library/nginx:alpine
 RUN rm /etc/nginx/conf.d/default.conf
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/build /usr/share/nginx/html
